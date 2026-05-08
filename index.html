@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ClassHub Academic Portal</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="site-shell">
+      <section class="auth-screen" id="authScreen">
+        <div class="auth-art" aria-hidden="true">
+          <img src="assets/classhub-glow.png" alt="" />
+          <div class="auth-art-copy">
+            <p>Academic command center</p>
+            <h1>Tasks, deadlines, courses, and class updates in one calm place.</h1>
+          </div>
+        </div>
+
+        <form class="auth-card" id="loginForm">
+          <a class="brand-mark auth-brand" href="#" aria-label="ClassHub home">
+            <span class="brand-icon" aria-hidden="true"></span>
+            <span>ClassHub</span>
+          </a>
+
+          <div class="auth-heading">
+            <p class="eyebrow">Secure student terminal</p>
+            <h2>Welcome Back</h2>
+            <p>Access your academic records, deadlines, and class updates.</p>
+          </div>
+
+          <label class="field-label" for="studentEmail">Student Email</label>
+          <div class="input-shell">
+            <span data-icon="at-sign"></span>
+            <input id="studentEmail" name="studentEmail" type="email" placeholder="username@university.edu" autocomplete="email" required />
+          </div>
+
+          <div class="field-row">
+            <label class="field-label" for="studentPassword">Password</label>
+            <button class="link-button" type="button" id="forgotBtn">Forgot Password?</button>
+          </div>
+          <div class="input-shell">
+            <span data-icon="lock"></span>
+            <input id="studentPassword" name="studentPassword" type="password" placeholder="Password" autocomplete="current-password" required />
+            <button class="icon-button ghost" type="button" id="togglePassword" aria-label="Show password" title="Show password">
+              <span data-icon="eye"></span>
+            </button>
+          </div>
+
+          <label class="check-row">
+            <input type="checkbox" />
+            <span>Keep me signed in for 30 days</span>
+          </label>
+
+          <button class="primary-action" type="submit">
+            <span>Sign In</span>
+            <span data-icon="log-in"></span>
+          </button>
+
+          <div class="policy-note">
+            <span data-icon="shield"></span>
+            <p>
+              This is a secure academic terminal. By signing in, you agree to our
+              <a href="#">Academic Integrity Policy</a> and
+              <a href="#">Data Usage Agreement</a>.
+            </p>
+          </div>
+        </form>
+      </section>
+
+      <section class="app-screen is-hidden" id="appScreen">
+        <header class="topbar">
+          <button class="icon-button menu-toggle" type="button" id="menuToggle" aria-label="Open navigation" title="Open navigation">
+            <span data-icon="menu"></span>
+          </button>
+          <a class="brand-mark" href="#" data-route="home" aria-label="ClassHub home">
+            <span class="brand-icon" aria-hidden="true"></span>
+            <span>ClassHub</span>
+          </a>
+          <div class="topbar-actions">
+            <button class="icon-button desktop-only" type="button" id="globalSearchBtn" aria-label="Search" title="Search">
+              <span data-icon="search"></span>
+            </button>
+            <button class="icon-button" type="button" id="notificationsBtn" aria-label="Notifications" title="Notifications">
+              <span data-icon="bell"></span>
+            </button>
+            <button class="avatar-button" type="button" id="profileBtn" aria-label="Profile menu" title="Profile menu">A</button>
+          </div>
+        </header>
+
+        <aside class="side-nav" id="sideNav" aria-label="Primary navigation">
+          <button class="nav-item is-active" data-route="home" type="button">
+            <span data-icon="home"></span>
+            <span>Home</span>
+          </button>
+          <button class="nav-item" data-route="tasks" type="button">
+            <span data-icon="clipboard"></span>
+            <span>Tasks</span>
+          </button>
+          <button class="nav-item" data-route="calendar" type="button">
+            <span data-icon="calendar"></span>
+            <span>Calendar</span>
+          </button>
+          <button class="nav-item" data-route="reps" type="button">
+            <span data-icon="users"></span>
+            <span>Reps</span>
+          </button>
+        </aside>
+
+        <main class="view-stage" id="viewStage" tabindex="-1"></main>
+
+        <nav class="bottom-nav" aria-label="Primary navigation">
+          <button class="nav-item is-active" data-route="home" type="button">
+            <span data-icon="home"></span>
+            <span>Home</span>
+          </button>
+          <button class="nav-item" data-route="tasks" type="button">
+            <span data-icon="clipboard"></span>
+            <span>Tasks</span>
+          </button>
+          <button class="nav-item" data-route="calendar" type="button">
+            <span data-icon="calendar"></span>
+            <span>Calendar</span>
+          </button>
+          <button class="nav-item" data-route="reps" type="button">
+            <span data-icon="users"></span>
+            <span>Reps</span>
+          </button>
+        </nav>
+      </section>
+    </div>
+
+    <div class="modal-host is-hidden" id="modalHost" aria-hidden="true">
+      <div class="modal-backdrop" data-close-modal></div>
+      <section class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+        <button class="icon-button modal-close" type="button" data-close-modal aria-label="Close dialog" title="Close">
+          <span data-icon="x"></span>
+        </button>
+        <div id="modalContent"></div>
+      </section>
+    </div>
+
+    <div class="toast-stack" id="toastStack" aria-live="polite" aria-atomic="true"></div>
+    <script src="app.js"></script>
+  </body>
+</html>

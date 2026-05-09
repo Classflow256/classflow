@@ -30,6 +30,8 @@ const icons = {
 
 const state = {
   route: "home",
+  isAdmin: false,
+  adminEmail: "classflow256@gmail.com",
   selectedCalendarDay: 5,
   taskFilter: "All Tasks",
   search: "",
@@ -141,14 +143,12 @@ function pageTitle(title, copy, action = "") {
 }
 
 function renderHome() {
-  const deadlines = state.tasks.filter((task) => task.type !== "Announcement").slice(0, 3);
   return `
-    <div class="page-grid home-layout">
+    <div class="page-grid">
       <section class="page-grid">
         ${pageTitle(
           "Welcome back, Alex",
-          "Tuesday, May 5th • Faculty of Engineering",
-          `<div class="action-row"><button class="primary-action compact-primary" data-open-task>${icon("plus")}<span>New Task</span></button></div>`
+          "Tuesday, May 5th - Faculty of Engineering"
         )}
 
         <div class="stats-grid">
@@ -159,33 +159,17 @@ function renderHome() {
 
         <section>
           <div class="section-head">
-            <h2 class="section-title">${icon("megaphone")} Recent Announcements</h2>
+            <h2 class="section-title">Priority & Upcoming</h2>
             <button class="link-button" data-route="tasks">View All</button>
           </div>
           <div class="announcement-list">
-            ${announcement("Academic Affairs", "2 hours ago", "Mid-Term Examination Schedule Released", "The comprehensive schedule for the upcoming mid-term examinations is now available for review.")}
-            ${announcement("Career Services", "Yesterday", "Annual Career Fair: October 30th", "Over 50 multinational companies will be visiting the campus next week. Ensure your profile is updated.")}
+            ${state.tasks.map(taskCard).join("")}
           </div>
         </section>
       </section>
-
-      <aside class="page-grid">
-        <section class="content-card">
-          <div class="agenda-header">
-            <h2 class="section-title">Upcoming Deadlines</h2>
-          </div>
-          <div class="deadline-list">
-            ${deadlines.map(deadlineRow).join("")}
-          </div>
-        </section>
-        <button class="map-card" type="button" data-map>
-          <span class="map-button">${icon("map")} Campus Wayfinding</span>
-        </button>
-      </aside>
     </div>
   `;
 }
-
 function statCard(iconName, kicker, number, label, tone) {
   return `
     <article class="stat-card">
@@ -272,25 +256,7 @@ function renderTasks() {
           ${progressRow("Exam Readiness", "64%", 64)}
           <button class="secondary-action" style="width:100%; margin-top: 24px">View Gradebook ${icon("chevron-right")}</button>
         </section>
-        <section class="content-card">
-          <div class="agenda-header"><h2 class="section-title">Quick Calendar</h2></div>
-          <div class="deadline-list">
-            ${miniCalendar()}
-          </div>
-        </section>
-        <section>
-          <div class="section-head">
-            <h2 class="section-title">Recently Completed</h2>
-            <button class="link-button">View History</button>
-          </div>
-          <div class="completed-list">
-            ${completed("Mathematics", "Linear Algebra Quiz")}
-            ${completed("English Lit", "Modernism Essay")}
-            ${completed("Chemistry", "Lab Report #4")}
-          </div>
-        </section>
       </aside>
-      <button class="floating-add" type="button" data-open-task aria-label="Add task">${icon("plus")}</button>
     </div>
   `;
 }
@@ -402,8 +368,6 @@ function renderCalendar() {
             ${agendaItem("09:00", "Advanced Calculus II", "Hall 12A", "primary")}
             ${agendaItem("11:30", "Research Ethics Seminar", "Virtual Session", "")}
             ${agendaItem("23:59", "Project Submission", "Data Structures & Algorithms", "danger")}
-            <div class="agenda-empty">${icon("calendar")}<span>No more events scheduled</span></div>
-            <button class="primary-action" type="button" data-open-task>Add New Task</button>
           </div>
         </section>
       </aside>
@@ -424,6 +388,15 @@ function agendaItem(time, title, meta, tone) {
 }
 
 function renderReps() {
+  if (!state.isAdmin) {
+    return `
+      <div class="page-grid">
+        ${pageTitle("Administrator Panel", "Only the admin account can create or change class updates.")}
+        ${emptyCard("Sign in with classflow256@gmail.com to access publishing tools.")}
+      </div>
+    `;
+  }
+
   return `
     <div class="page-grid rep-layout">
       <section class="page-grid">
@@ -474,21 +447,10 @@ function renderReps() {
           <strong>84%</strong>
           <p>of classmates have read your last post</p>
         </section>
-        <section>
-          <div class="section-head">
-            <h2 class="section-title">My Posts</h2>
-            <span class="meta-line"><span style="color:var(--green)">•</span> Live Console</span>
-          </div>
-          <div class="post-list">
-            ${state.posts.map(postCard).join("")}
-          </div>
-        </section>
-        <button class="secondary-action" type="button">Load Older Posts</button>
       </aside>
     </div>
   `;
 }
-
 function postCard(post) {
   return `
     <article class="post-card">
@@ -513,25 +475,6 @@ function emptyCard(message) {
   return `<article class="content-card announcement"><p>${message}</p></article>`;
 }
 
-function openTaskModal() {
-  modalContent.innerHTML = `
-    <h2 id="modalTitle">Add New Task</h2>
-    <form id="taskForm" class="form-grid" style="margin-top: 18px">
-      <label class="form-control"><span class="field-label">Title</span><input name="title" placeholder="Task title" required /></label>
-      <div class="form-grid two">
-        <label class="form-control"><span class="field-label">Type</span><select name="type"><option>Assignment</option><option>Exam</option><option>Announcement</option></select></label>
-        <label class="form-control"><span class="field-label">Due Date</span><input name="due" placeholder="Oct 30, 2026" required /></label>
-      </div>
-      <label class="form-control"><span class="field-label">Course</span><input name="course" placeholder="Course name" required /></label>
-      <label class="form-control"><span class="field-label">Description</span><textarea name="description" placeholder="Add details for classmates or yourself..." required></textarea></label>
-      <button class="primary-action" type="submit">Save Task</button>
-    </form>
-  `;
-  modalHost.classList.remove("is-hidden");
-  modalHost.setAttribute("aria-hidden", "false");
-  hydrateIcons(modalHost);
-}
-
 function closeModal() {
   modalHost.classList.add("is-hidden");
   modalHost.setAttribute("aria-hidden", "true");
@@ -551,10 +494,12 @@ function render() {
 
 document.querySelector("#loginForm").addEventListener("submit", (event) => {
   event.preventDefault();
+  const email = new FormData(event.target).get("studentEmail").trim().toLowerCase();
+  state.isAdmin = email === state.adminEmail;
   authScreen.classList.add("is-hidden");
   appScreen.classList.remove("is-hidden");
   routeTo("home");
-  toast("Signed in to the ClassHub demo workspace.");
+  toast(state.isAdmin ? "Admin access enabled." : "Signed in to the ClassHub demo workspace.");
 });
 
 document.querySelector("#togglePassword").addEventListener("click", () => {
@@ -567,11 +512,6 @@ document.addEventListener("click", (event) => {
   if (routeButton) {
     event.preventDefault();
     routeTo(routeButton.dataset.route);
-    return;
-  }
-
-  if (event.target.closest("[data-open-task]")) {
-    openTaskModal();
     return;
   }
 
@@ -622,7 +562,7 @@ document.addEventListener("click", (event) => {
   }
 
   const deleteButton = event.target.closest("[data-delete-post]");
-  if (deleteButton) {
+  if (deleteButton && state.isAdmin) {
     state.posts = state.posts.filter((post) => post.id !== Number(deleteButton.dataset.deletePost));
     render();
     toast("Post removed from the local demo feed.");
@@ -645,29 +585,25 @@ document.addEventListener("input", (event) => {
 });
 
 document.addEventListener("submit", (event) => {
-  if (event.target.id === "taskForm") {
+  if (event.target.id === "postForm") {
     event.preventDefault();
+    if (!state.isAdmin) {
+      toast("Only the admin can publish posts.");
+      return;
+    }
     const form = new FormData(event.target);
     state.tasks.unshift({
       id: Date.now(),
       type: form.get("type"),
-      course: form.get("course"),
+      course: "Class Update",
       code: "NEW",
       title: form.get("title"),
       description: form.get("description"),
-      due: form.get("due"),
+      due: form.get("due") ? `Due ${form.get("due")}` : "Just Now",
       time: "TBD",
       priority: "normal",
       status: "New"
     });
-    closeModal();
-    routeTo("tasks");
-    toast("Task added locally. Supabase can persist this later.");
-  }
-
-  if (event.target.id === "postForm") {
-    event.preventDefault();
-    const form = new FormData(event.target);
     state.posts.unshift({
       id: Date.now(),
       type: form.get("type"),
@@ -697,3 +633,5 @@ document.querySelector("#profileBtn").addEventListener("click", () => {
 
 hydrateIcons();
 render();
+
+

@@ -28,71 +28,89 @@ const icons = {
   file: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/>'
 };
 
+const SUPABASE_URL = "https://kawobtctyjmrdrbuliwy.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_QvCFHT308D--EtbK4W8kyA_kugK02qH";
+const supabaseClient = window.supabase
+  ? window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY)
+  : null;
+
+const UNIVERSITIES = ["Mbarara University of Science and Technology"];
+const COURSE_CODES = {
+  pha: "Bachelor of Pharmacy",
+  mbr: "Bachelor of Medicine and Bachelor of Surgery",
+  bme: "Bachelor of Biomedical Engineering",
+  eee: "Bachelor of Engineering in Electrical and Electronics Engineering",
+  peem: "Bachelor of Science in Petroleum Engineering and Environmental Management",
+  mls: "Bachelor of Medical Laboratory Science",
+  bns: "Bachelor of Nursing Science",
+  bse: "Bachelor of Software Engineering",
+  bsp: "Bachelor of Science in Physiotherapy",
+  bsal: "Bachelor of Science in Agriculture and Livelihoods",
+  cve: "Bachelor of Science in Civil Engineering",
+  mie: "Bachelor of Science in Mechanical and Industrial Engineering",
+  bs: "Bachelor of Science with Education",
+  bcs: "Bachelor of Computer Science",
+  bit: "Bachelor of Information Technology",
+  phs: "Bachelor of Science in Pharmaceutical Sciences",
+  bgwh: "Bachelor of Science in Gender and Applied Women Health",
+  bpcd: "Bachelor of Science in Planning and Community Development",
+  bsaf: "Bachelor of Science in Accounting and Finance",
+  bba: "Bachelor of Business Administration",
+  eco: "Bachelor of Science in Economics",
+  bpsm: "Bachelor of Science in Procurement and Supply Chain Management",
+  dlt: "Diploma in Science Laboratory Technology",
+  dcm: "Diploma in Community HIV/AIDS Care and Management",
+  dem: "Diploma in Emergency Medicine",
+  dcam: "Advanced Diploma in Child and Adolescent Mental Health"
+};
+const COURSE_DURATIONS = {
+  pha: 5,
+  mbr: 5,
+  bme: 4,
+  eee: 4,
+  peem: 4,
+  mls: 4,
+  bns: 4,
+  bse: 4,
+  bsp: 4,
+  bsal: 4,
+  cve: 4,
+  mie: 4,
+  bs: 3,
+  bcs: 3,
+  bit: 3,
+  phs: 3,
+  bgwh: 3,
+  bpcd: 3,
+  bsaf: 3,
+  bba: 3,
+  eco: 3,
+  bpsm: 3,
+  dlt: 2,
+  dcm: 2,
+  dem: 2,
+  dcam: 2
+};
+const CURRENT_COHORT_YEAR = 2025;
+const SUPPORTED_YEARS = ["2025", "2024", "2023", "2022", "2021"];
+const PRESIDENT_EMAILS = ["2025bit196@std.must.ac.ug"];
+const OWNER_EMAILS = ["owner@classflow256.com"];
+
 const state = {
   route: "home",
+  authMode: "signin",
   isAdmin: false,
-  adminEmail: "classflow256@gmail.com",
-  selectedCalendarDay: 5,
+  isOwner: false,
+  currentUser: null,
+  session: null,
+  supabaseReady: Boolean(supabaseClient),
+  selectedCalendarDay: new Date().getDate(),
+  calendarDate: new Date(),
   taskFilter: "All Tasks",
   search: "",
-  tasks: [
-    {
-      id: 1,
-      type: "Assignment",
-      course: "Advanced Algorithms",
-      code: "CS402",
-      title: "Distributed Systems Final Project",
-      description: "Complete the implementation of the consensus protocol using Raft. Ensure all unit tests pass before submission.",
-      due: "Oct 24, 2026",
-      time: "11:59 PM",
-      priority: "urgent",
-      status: "Due in 2 Days"
-    },
-    {
-      id: 2,
-      type: "Exam",
-      course: "Theoretical Computing",
-      code: "CS305",
-      title: "P vs NP Complexity Theory",
-      description: "Main Hall, Room 402. Bring your student ID and approved calculator.",
-      due: "Oct 28, 2026",
-      time: "14:00 - 16:30",
-      priority: "upcoming",
-      status: "Upcoming"
-    },
-    {
-      id: 3,
-      type: "Announcement",
-      course: "Physics 101",
-      code: "PHY101",
-      title: "Lab Rescheduled",
-      description: "The Physics 101 lab originally scheduled for Tuesday has been moved to Thursday afternoon.",
-      due: "Just Now",
-      time: "",
-      priority: "normal",
-      status: "New"
-    }
-  ],
-  posts: [
-    {
-      id: 1,
-      type: "Assignment",
-      title: "Physics Lab 04: Thermodynamics Results",
-      description: "Please ensure all calculations for the specific heat capacity are rounded to three decimal places before upload.",
-      due: "Due Oct 24, 2026",
-      posted: "Posted 2h ago",
-      priority: "normal"
-    },
-    {
-      id: 2,
-      type: "Announcement",
-      title: "Change of Venue: Advanced Calculus",
-      description: "The lecture scheduled for tomorrow will now be held in Room 402, Block C instead of the main auditorium.",
-      due: "Priority: High",
-      posted: "Posted Oct 20",
-      priority: "high"
-    }
-  ]
+  tasks: [],
+  posts: [],
+  completedTaskIds: new Set()
 };
 
 const viewStage = document.querySelector("#viewStage");
@@ -101,6 +119,156 @@ const appScreen = document.querySelector("#appScreen");
 const modalHost = document.querySelector("#modalHost");
 const modalContent = document.querySelector("#modalContent");
 const toastStack = document.querySelector("#toastStack");
+
+function normalizeEmail(email) {
+  return email.trim().toLowerCase();
+}
+
+function courseDuration(courseCode) {
+  return COURSE_DURATIONS[courseCode] || 3;
+}
+
+function studyYearFor(joinedYear, courseCode) {
+  const cohort = Number(joinedYear);
+  const duration = courseDuration(courseCode);
+  if (!Number.isFinite(cohort)) return "";
+
+  const year = CURRENT_COHORT_YEAR - cohort + 1;
+  const boundedYear = Math.max(1, Math.min(duration, year));
+  return `Year ${boundedYear}`;
+}
+
+function parseClassEmail(email) {
+  const raw = email.trim();
+  const normalized = normalizeEmail(email);
+  const match = raw.match(/^(\d{4})([a-z]+)(\d+)@std\.must\.ac\.ug$/);
+  if (!match) return null;
+
+  const [, year, courseCode, studentNumber] = match;
+  if (!COURSE_CODES[courseCode]) return null;
+
+  return {
+    email: normalized,
+    year,
+    courseCode,
+    studentNumber,
+    regNumber: `${year}${courseCode.toUpperCase()}${studentNumber}`,
+    university: UNIVERSITIES[0],
+    course: COURSE_CODES[courseCode],
+    courseDuration: courseDuration(courseCode),
+    studyYear: studyYearFor(year, courseCode),
+    dashboardKey: `${year}-${courseCode}`
+  };
+}
+
+function roleForEmail(email) {
+  const normalized = normalizeEmail(email);
+  if (OWNER_EMAILS.includes(normalized)) return "owner";
+  if (PRESIDENT_EMAILS.includes(normalized)) return "admin";
+  return "student";
+}
+
+function userInitial(profile = state.currentUser) {
+  const name = profile?.fullName || "";
+  const email = profile?.email || "";
+  return (name || email).charAt(0).toUpperCase() || "A";
+}
+
+function firstName() {
+  const name = state.currentUser?.fullName?.trim();
+  if (name) return name.split(/\s+/)[0];
+  const emailName = state.currentUser?.email?.split("@")[0] || "";
+  return emailName || "there";
+}
+
+function avatarImageUrl(url) {
+  if (!url) return "";
+  if (url.startsWith("data:")) return url;
+  const separator = url.includes("?") ? "&" : "?";
+  return `${url}${separator}v=${Date.now()}`;
+}
+
+function updateAvatarButton() {
+  const button = document.querySelector("#profileBtn");
+  if (!button) return;
+
+  const avatarUrl = state.currentUser?.avatarUrl || "";
+  button.classList.toggle("has-photo", Boolean(avatarUrl));
+  button.innerHTML = avatarUrl
+    ? `<img src="${avatarUrl}" alt="" />`
+    : userInitial();
+}
+
+function dashboardOptions() {
+  return SUPPORTED_YEARS.flatMap((year) =>
+    Object.entries(COURSE_CODES).map(([code, course]) => ({
+      key: `${year}-${code}`,
+      label: `${year} - ${course}`
+    }))
+  );
+}
+
+function courseForDashboardKey(dashboardKey) {
+  const code = dashboardKey?.split("-")[1];
+  return COURSE_CODES[code] || state.currentUser?.course || "Class Update";
+}
+
+async function roleForSignedInEmail(email) {
+  const fallbackRole = roleForEmail(email);
+  if (!supabaseClient) return fallbackRole;
+
+  const { data, error } = await supabaseClient
+    .from("app_roles")
+    .select("role")
+    .eq("email", normalizeEmail(email))
+    .maybeSingle();
+
+  if (error) {
+    console.error(error);
+    return fallbackRole;
+  }
+
+  return data?.role || fallbackRole;
+}
+
+function profileFromRow(row, fallbackProfile) {
+  if (!row) return fallbackProfile;
+
+  return {
+    ...fallbackProfile,
+    email: row.email || fallbackProfile.email,
+    fullName: row.full_name || fallbackProfile.fullName || "",
+    gender: row.gender || fallbackProfile.gender || "",
+    regNumber: row.reg_number || fallbackProfile.regNumber,
+    university: row.university || fallbackProfile.university,
+    course: row.course || fallbackProfile.course,
+    year: row.year_joined || fallbackProfile.year,
+    courseCode: row.course_code || fallbackProfile.courseCode,
+    studentNumber: row.student_number || fallbackProfile.studentNumber,
+    courseDuration: row.course_duration || fallbackProfile.courseDuration || courseDuration(row.course_code || fallbackProfile.courseCode),
+    studyYear: row.study_year || fallbackProfile.studyYear || studyYearFor(row.year_joined || fallbackProfile.year, row.course_code || fallbackProfile.courseCode),
+    dashboardKey: row.dashboard_key || fallbackProfile.dashboardKey,
+    role: row.role || fallbackProfile.role,
+    avatarUrl: row.avatar_url || fallbackProfile.avatarUrl || ""
+  };
+}
+
+async function loadUserProfile(userId, fallbackProfile) {
+  if (!supabaseClient || !userId) return fallbackProfile;
+
+  const { data, error } = await supabaseClient
+    .from("profiles")
+    .select("*")
+    .eq("id", userId)
+    .maybeSingle();
+
+  if (error) {
+    console.error(error);
+    return fallbackProfile;
+  }
+
+  return profileFromRow(data, fallbackProfile);
+}
 
 function icon(name) {
   return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${icons[name] || icons.file}</svg>`;
@@ -118,6 +286,325 @@ function toast(message) {
   node.textContent = message;
   toastStack.appendChild(node);
   setTimeout(() => node.remove(), 3200);
+}
+
+function formatDate(date) {
+  return date.toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "short",
+    day: "numeric"
+  });
+}
+
+function monthTitle(date) {
+  return date.toLocaleDateString("en-US", {
+    month: "long",
+    year: "numeric"
+  });
+}
+
+function taskDate(task) {
+  const raw = String(task.due || "").replace(/^Due\s+/i, "");
+  const parsed = new Date(raw);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function isSameDay(a, b) {
+  return a && b &&
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate();
+}
+
+function visibleTasks() {
+  const query = state.search.toLowerCase();
+  return state.tasks.filter((task) => {
+    const matchesSearch = [task.title, task.course, task.description, task.resourceLink].join(" ").toLowerCase().includes(query);
+    const matchesFilter =
+      state.taskFilter === "All Tasks" ||
+      (state.taskFilter === "Assignments" && task.type === "Assignment") ||
+      (state.taskFilter === "Tests" && task.type === "Test") ||
+      (state.taskFilter === "Exams" && task.type === "Exam") ||
+      (state.taskFilter === "Announcements" && task.type === "Announcement");
+    return matchesSearch && matchesFilter;
+  });
+}
+
+function openModal(content) {
+  modalContent.innerHTML = content;
+  modalHost.classList.remove("is-hidden");
+  modalHost.setAttribute("aria-hidden", "false");
+  hydrateIcons(modalHost);
+}
+
+function renderAuthForm() {
+  const isSignup = state.authMode === "signup";
+
+  return `
+    <div class="auth-heading">
+      <h2>${isSignup ? "Join Your Class" : "Welcome Back"}</h2>
+    </div>
+
+    <div class="auth-tabs">
+      <button class="${!isSignup ? "is-active" : ""}" type="button" data-auth-mode="signin">Sign In</button>
+      <button class="${isSignup ? "is-active" : ""}" type="button" data-auth-mode="signup">Create Account</button>
+    </div>
+
+    ${isSignup ? `
+      <label class="field-label" for="fullName">Full Name</label>
+      <div class="input-shell">
+        <span data-icon="users"></span>
+        <input id="fullName" name="fullName" type="text" placeholder="Your name" autocomplete="name" required />
+      </div>
+
+      <label class="field-label field-spacer" for="gender">Gender</label>
+      <div class="input-shell">
+        <span data-icon="users"></span>
+        <select id="gender" name="gender" required>
+          <option value="">Choose gender</option>
+          <option value="Female">Female</option>
+          <option value="Male">Male</option>
+        </select>
+      </div>
+    ` : ""}
+
+    <label class="field-label" for="studentEmail">Class Email</label>
+    <div class="input-shell">
+      <span data-icon="at-sign"></span>
+      <input id="studentEmail" name="studentEmail" type="email" placeholder="2025bit196@std.must.ac.ug" autocomplete="email" required />
+    </div>
+
+    <div class="field-row">
+      <label class="field-label" for="studentPassword">${isSignup ? "Set Any Password" : "Password"}</label>
+      <button class="link-button" type="button" id="forgotBtn">Forgot Password?</button>
+    </div>
+    <div class="input-shell">
+      <span data-icon="lock"></span>
+      <input id="studentPassword" name="studentPassword" type="password" placeholder="${isSignup ? "ANY PASSWORD" : "Password"}" autocomplete="${isSignup ? "new-password" : "current-password"}" required />
+      <button class="icon-button ghost" type="button" id="togglePassword" aria-label="Show password" title="Show password">
+        <span data-icon="eye"></span>
+      </button>
+    </div>
+
+    <button class="primary-action" type="submit">
+      <span>${isSignup ? "Create Account" : "Sign In"}</span>
+      <span data-icon="log-in"></span>
+    </button>
+
+  `;
+}
+
+function setUserRole(profile) {
+  const metadataRole = profile.role || roleForEmail(profile.email || "");
+  state.isOwner = metadataRole === "owner";
+  state.isAdmin = state.isOwner || metadataRole === "admin";
+  state.currentUser = profile;
+}
+
+function showDashboard() {
+  authScreen.classList.add("is-hidden");
+  appScreen.classList.remove("is-hidden");
+  updateAvatarButton();
+  routeTo("home");
+}
+
+function dashboardLabel() {
+  if (state.isOwner) return "App owner dashboard";
+  if (!state.currentUser?.year || !state.currentUser?.course) return "Faculty of Engineering";
+  return `${state.currentUser.course} - ${state.currentUser.studyYear || state.currentUser.year}`;
+}
+
+function startOfDay(date) {
+  const copy = new Date(date);
+  copy.setHours(0, 0, 0, 0);
+  return copy;
+}
+
+function isDueWithinDays(task, days) {
+  const dueDate = taskDate(task);
+  if (!dueDate) return false;
+
+  const today = startOfDay(new Date());
+  const limit = startOfDay(new Date());
+  limit.setDate(today.getDate() + days);
+  const dueDay = startOfDay(dueDate);
+  return dueDay >= today && dueDay <= limit;
+}
+
+function isTaskDone(task) {
+  return state.completedTaskIds.has(String(task.id));
+}
+
+function stats() {
+  const assignments = state.tasks.filter((task) => task.type === "Assignment");
+  const completedAssignments = assignments.filter(isTaskDone);
+  const urgentAssignments = assignments.filter((task) => !isTaskDone(task) && isDueWithinDays(task, 3));
+  const tests = state.tasks.filter((task) => task.type === "Test");
+  const exams = state.tasks.filter((task) => task.type === "Exam");
+  return { assignments, completedAssignments, urgentAssignments, tests, exams };
+}
+
+function taskFromRow(row) {
+  return {
+    id: row.id,
+    type: row.type || "Announcement",
+    course: row.course || "Class Update",
+    code: row.code || "NEW",
+    title: row.title,
+    description: row.description,
+    due: row.due || "Just Now",
+    time: row.time || "",
+    priority: row.priority || "normal",
+    status: row.status || "New",
+    resourceLink: row.resource_link || "",
+    dashboardKey: row.dashboard_key || ""
+  };
+}
+
+function taskPayloadFromForm(form) {
+  const type = form.get("type");
+  const due = form.get("due");
+  const dashboardKey = form.get("dashboard_key") || state.currentUser?.dashboardKey || "";
+  const resourceLink = String(form.get("resource_link") || "").trim();
+  return {
+    type,
+    course: courseForDashboardKey(dashboardKey),
+    code: "NEW",
+    title: form.get("title"),
+    description: form.get("description"),
+    due: due ? `Due ${due}` : "Just Now",
+    time: "TBD",
+    priority: type === "Announcement" ? "normal" : "upcoming",
+    status: "New",
+    resource_link: resourceLink,
+    dashboard_key: dashboardKey
+  };
+}
+
+function completionStorageKey() {
+  return `classflow:completed:${state.currentUser?.email || "guest"}`;
+}
+
+function loadLocalCompletions() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(completionStorageKey()) || "[]");
+    state.completedTaskIds = new Set(stored.map(String));
+  } catch (error) {
+    console.error(error);
+    state.completedTaskIds = new Set();
+  }
+}
+
+function saveLocalCompletions() {
+  localStorage.setItem(completionStorageKey(), JSON.stringify([...state.completedTaskIds]));
+}
+
+async function loadTaskCompletions() {
+  loadLocalCompletions();
+  if (!supabaseClient || !state.session?.user?.id) return;
+
+  const { data, error } = await supabaseClient
+    .from("task_completions")
+    .select("item_id")
+    .eq("user_id", state.session.user.id);
+
+  if (error) {
+    console.error(error);
+    return;
+  }
+
+  data?.forEach((row) => state.completedTaskIds.add(String(row.item_id)));
+  saveLocalCompletions();
+}
+
+async function markTaskDone(taskId) {
+  state.completedTaskIds.add(String(taskId));
+  saveLocalCompletions();
+  render();
+
+  if (!supabaseClient || !state.session?.user?.id) {
+    toast("Marked done on this device.");
+    return;
+  }
+
+  const { error } = await supabaseClient
+    .from("task_completions")
+    .upsert({
+      user_id: state.session.user.id,
+      item_id: taskId
+    });
+
+  toast(error
+    ? "Marked done here. Run the README SQL so it saves online."
+    : "Assignment marked as done.");
+}
+
+async function loadClassItems() {
+  if (!supabaseClient) return;
+
+  let query = supabaseClient
+    .from("class_items")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  if (!state.isOwner && state.currentUser?.dashboardKey) {
+    query = query.eq("dashboard_key", state.currentUser.dashboardKey);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    console.error(error);
+    state.tasks = [];
+    toast("Supabase table is not ready yet. No class items loaded.");
+    render();
+    return;
+  }
+
+  state.tasks = data?.map(taskFromRow) || [];
+  await loadTaskCompletions();
+  render();
+}
+
+async function saveProfile(userId, profile) {
+  if (!supabaseClient || !userId) return false;
+
+  const { error } = await supabaseClient
+    .from("profiles")
+    .upsert({
+      id: userId,
+      email: profile.email,
+      full_name: profile.fullName || "",
+      gender: profile.gender || "",
+      reg_number: profile.regNumber,
+      university: profile.university,
+      course: profile.course,
+      year_joined: profile.year,
+      course_code: profile.courseCode,
+      student_number: profile.studentNumber,
+      course_duration: profile.courseDuration || null,
+      study_year: profile.studyYear || null,
+      dashboard_key: profile.dashboardKey,
+      role: profile.role,
+      avatar_url: profile.avatarUrl || null
+    });
+
+  if (error) {
+    console.error(error);
+    toast("Profile table is not ready yet. You can still preview the dashboard.");
+    return false;
+  }
+
+  return true;
+}
+
+function fileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.addEventListener("load", () => resolve(reader.result));
+    reader.addEventListener("error", () => reject(reader.error));
+    reader.readAsDataURL(file);
+  });
 }
 
 function routeTo(route) {
@@ -143,18 +630,20 @@ function pageTitle(title, copy, action = "") {
 }
 
 function renderHome() {
+  const summary = stats();
   return `
     <div class="page-grid">
       <section class="page-grid">
         ${pageTitle(
-          "Welcome back, Alex",
-          "Tuesday, May 5th - Faculty of Engineering"
+          `Welcome back, ${firstName()}`,
+          `${formatDate(new Date())} - ${dashboardLabel()}`
         )}
 
         <div class="stats-grid">
-          ${statCard("clipboard", "Active Semester", "24", "Total Tasks Assigned", "")}
-          ${statCard("alarm", "Urgent", "03", "Pending Deadlines", "red")}
-          ${statCard("graduation", "GPA: 3.8", "06", "Active Courses", "green")}
+          ${statCard("clipboard", "Assignments", String(summary.assignments.length).padStart(2, "0"), `${summary.completedAssignments.length}/${summary.assignments.length} done`, "")}
+          ${statCard("alarm", "Due Soon", String(summary.urgentAssignments.length).padStart(2, "0"), "Assignments due in 3 days", "red")}
+          ${statCard("file", "Tests", String(summary.tests.length).padStart(2, "0"), "Total tests", "green")}
+          ${statCard("graduation", "Exams", String(summary.exams.length).padStart(2, "0"), "Total exams", "")}
         </div>
 
         <section>
@@ -163,7 +652,7 @@ function renderHome() {
             <button class="link-button" data-route="tasks">View All</button>
           </div>
           <div class="announcement-list">
-            ${state.tasks.map(taskCard).join("")}
+            ${state.tasks.length ? state.tasks.map(taskCard).join("") : emptyCard("No class items have been posted yet.")}
           </div>
         </section>
       </section>
@@ -212,17 +701,10 @@ function deadlineRow(task) {
 }
 
 function renderTasks() {
-  const filters = ["All Tasks", "Assignments", "Exams", "Announcements"];
-  const query = state.search.toLowerCase();
-  const filtered = state.tasks.filter((task) => {
-    const matchesSearch = [task.title, task.course, task.description].join(" ").toLowerCase().includes(query);
-    const matchesFilter =
-      state.taskFilter === "All Tasks" ||
-      (state.taskFilter === "Assignments" && task.type === "Assignment") ||
-      (state.taskFilter === "Exams" && task.type === "Exam") ||
-      (state.taskFilter === "Announcements" && task.type === "Announcement");
-    return matchesSearch && matchesFilter;
-  });
+  const filters = ["All Tasks", "Assignments", "Tests", "Exams", "Announcements"];
+  const filtered = visibleTasks();
+  const summary = stats();
+  const progress = summary.assignments.length ? Math.round((summary.completedAssignments.length / summary.assignments.length) * 100) : 0;
 
   return `
     <div class="page-grid tasks-layout">
@@ -252,9 +734,11 @@ function renderTasks() {
       <aside class="page-grid">
         <section class="content-card progress-card">
           <h2 class="section-title">Progress Summary</h2>
-          ${progressRow("Assignments Done", "12/15", 80)}
-          ${progressRow("Exam Readiness", "64%", 64)}
-          <button class="secondary-action" style="width:100%; margin-top: 24px">View Gradebook ${icon("chevron-right")}</button>
+          ${progressRow("Assignments Done", `${summary.completedAssignments.length}/${summary.assignments.length}`, progress)}
+          ${progressRow("Due Soon", String(summary.urgentAssignments.length), summary.assignments.length ? Math.round((summary.urgentAssignments.length / summary.assignments.length) * 100) : 0)}
+          ${progressRow("Tests", String(summary.tests.length), state.tasks.length ? Math.round((summary.tests.length / state.tasks.length) * 100) : 0)}
+          ${progressRow("Exams", String(summary.exams.length), state.tasks.length ? Math.round((summary.exams.length / state.tasks.length) * 100) : 0)}
+          <button class="secondary-action" style="width:100%; margin-top: 24px" data-route="calendar">Open Calendar ${icon("chevron-right")}</button>
         </section>
       </aside>
     </div>
@@ -263,21 +747,37 @@ function renderTasks() {
 
 function taskCard(task) {
   const typeClass = task.type.toLowerCase();
-  const badgeTone = task.priority === "urgent" ? "red" : task.priority === "normal" ? "green" : "";
+  const done = isTaskDone(task);
+  const urgent = task.type === "Assignment" && !done && isDueWithinDays(task, 3);
+  const badgeTone = done || task.priority === "normal" ? "green" : urgent || task.priority === "urgent" ? "red" : "";
+  const resource = task.resourceLink || "";
+  const resourceIsUrl = /^https?:\/\//i.test(resource);
   return `
-    <article class="task-card ${typeClass}">
+    <article class="task-card ${typeClass} ${done ? "is-done" : ""}">
       <div class="task-tags">
-        <span class="badge ${badgeTone}">${task.type}</span>
+        <span class="badge ${badgeTone}">${done ? "Done" : task.type}</span>
         <span class="meta-line">• ${task.course} (${task.code})</span>
+        ${urgent ? `<span class="badge red">Due Soon</span>` : ""}
       </div>
       <h3>${task.title}</h3>
       <p>${task.description}</p>
+      ${resource ? `
+        <div class="task-resource">
+          ${icon("file")}
+          ${resourceIsUrl
+            ? `<a href="${resource}" target="_blank" rel="noreferrer">Open task link</a>`
+            : `<span>${resource}</span>`}
+        </div>
+      ` : ""}
       <div class="task-footer">
         <div class="task-meta">
           <span>${icon("clock")} ${task.time || task.due}</span>
           <span>${task.due}</span>
         </div>
-        <button class="tiny-button" data-task-action="${task.id}">${task.type === "Exam" ? "Study Guide" : "Details"}</button>
+        <div class="task-buttons">
+          ${task.type === "Assignment" && !done ? `<button class="tiny-button secondary" data-mark-done="${task.id}" type="button">Mark as Done</button>` : ""}
+          <button class="tiny-button" data-task-action="${task.id}" type="button">${task.type === "Exam" ? "Study Guide" : "Details"}</button>
+        </div>
       </div>
     </article>
   `;
@@ -287,54 +787,34 @@ function progressRow(label, value, width) {
   return `
     <div class="progress-row">
       <div><span>${label}</span><strong>${value}</strong></div>
-      <div class="progress-track"><span style="width:${width}%"></span></div>
+      <div class="progress-track"><span style="width:${Math.max(0, Math.min(100, width))}%"></span></div>
     </div>
-  `;
-}
-
-function miniCalendar() {
-  const days = ["MO", "TU", "WE", "TH", "FR", "SA", "SU"];
-  const nums = [19, 20, 21, 22, 23, 24, 25];
-  return `
-    <div style="padding: 18px; display:grid; gap:12px">
-      <div style="display:grid; grid-template-columns: repeat(7, 1fr); gap:8px; text-align:center; color:#607087; font-size:11px">
-        ${days.map((day) => `<span>${day}</span>`).join("")}
-        ${nums.map((num) => `<strong style="padding:8px 0; border-radius:5px; background:${num === 22 ? "#dceaff" : "transparent"}; color:${num === 22 ? "var(--blue)" : "#516176"}">${num}</strong>`).join("")}
-      </div>
-      <span class="badge red" style="justify-content:flex-start">14:00 - UI/UX Quiz</span>
-      <span class="badge" style="justify-content:flex-start">16:30 - Group Sync</span>
-    </div>
-  `;
-}
-
-function completed(course, title) {
-  return `
-    <article class="content-card completed-row">
-      <div>
-        <span class="card-kicker">${course}</span>
-        <h3>${title}</h3>
-      </div>
-      <span class="badge green">${icon("check")}</span>
-    </article>
   `;
 }
 
 function renderCalendar() {
-  const days = [
-    ["25", true], ["26", true], ["27", true], ["28", true], ["29", true], ["30", true], ["1", false],
-    ["2", false], ["3", false], ["4", false], ["5", false, true], ["6", false], ["7", false], ["8", false],
-    ["9", false], ["10", false, false, true], ["11", false], ["12", false], ["13", false], ["14", false], ["15", false],
-    ["16", false], ["17", false], ["18", false], ["19", false], ["20", false], ["21", false], ["22", false],
-    ["23", false], ["24", false], ["25", false], ["26", false], ["27", false], ["28", false], ["29", false]
-  ];
+  const year = state.calendarDate.getFullYear();
+  const month = state.calendarDate.getMonth();
+  const firstOfMonth = new Date(year, month, 1);
+  const gridStart = new Date(year, month, 1 - firstOfMonth.getDay());
+  const days = Array.from({ length: 42 }, (_, index) => {
+    const date = new Date(gridStart);
+    date.setDate(gridStart.getDate() + index);
+    const hasEvent = state.tasks.some((task) => isSameDay(taskDate(task), date));
+    const today = isSameDay(date, new Date());
+    return [date, date.getMonth() !== month, hasEvent, today];
+  });
   const weekdays = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
+  const selectedDate = new Date(year, month, state.selectedCalendarDay);
+  const agenda = state.tasks.filter((task) => isSameDay(taskDate(task), selectedDate));
+
   return `
     <div class="page-grid calendar-shell">
       <section class="calendar-card" style="padding: clamp(16px, 4vw, 28px)">
         <div class="calendar-toolbar">
           <div>
-            <h1>September<br />2024</h1>
-            <p>Fall Semester • Week 4</p>
+            <h1>${monthTitle(state.calendarDate).replace(" ", "<br />")}</h1>
+            <p>${dashboardLabel()}</p>
           </div>
           <div class="calendar-controls">
             <button class="icon-button" type="button" data-calendar-prev aria-label="Previous month">${icon("chevron-left")}</button>
@@ -344,9 +824,9 @@ function renderCalendar() {
         </div>
         <div class="calendar-grid" style="margin-top: 24px">
           ${weekdays.map((day) => `<div class="weekday">${day}</div>`).join("")}
-          ${days.map(([day, muted, hasEvent, today]) => `
-            <button class="day-cell ${muted ? "is-muted" : ""} ${Number(day) === state.selectedCalendarDay && !muted ? "is-selected" : ""} ${hasEvent ? "has-event" : ""} ${today ? "is-today" : ""}" data-calendar-day="${muted ? "" : day}" type="button">
-              <span>${day}</span>
+          ${days.map(([date, muted, hasEvent, today]) => `
+            <button class="day-cell ${muted ? "is-muted" : ""} ${date.getDate() === state.selectedCalendarDay && !muted ? "is-selected" : ""} ${hasEvent ? "has-event" : ""} ${today ? "is-today" : ""}" data-calendar-day="${muted ? "" : date.getDate()}" type="button">
+              <span>${date.getDate()}</span>
             </button>
           `).join("")}
         </div>
@@ -355,26 +835,23 @@ function renderCalendar() {
       <aside class="page-grid">
         <section class="content-card legend-card">
           <div class="legend-row">
-            <span class="legend-dot red"></span><span class="meta-line">Deadline</span>
-            <span class="legend-dot"></span><span class="meta-line">Exam</span>
+            <span class="legend-dot red"></span><span class="meta-line">Urgent</span>
+            <span class="legend-dot"></span><span class="meta-line">Class Item</span>
           </div>
         </section>
         <section class="content-card agenda-card">
           <div class="agenda-header">
             <h2 class="section-title">Daily Agenda</h2>
-            <span class="card-kicker">Thursday, Sept ${state.selectedCalendarDay}</span>
+            <span class="card-kicker">${formatDate(selectedDate)}</span>
           </div>
           <div class="agenda-list">
-            ${agendaItem("09:00", "Advanced Calculus II", "Hall 12A", "primary")}
-            ${agendaItem("11:30", "Research Ethics Seminar", "Virtual Session", "")}
-            ${agendaItem("23:59", "Project Submission", "Data Structures & Algorithms", "danger")}
+            ${agenda.length ? agenda.map((task) => agendaItem(task.time || task.due, task.title, task.course, task.priority === "urgent" ? "danger" : "")).join("") : `<div class="agenda-empty">${icon("calendar")}<span>No events scheduled for this day.</span></div>`}
           </div>
         </section>
       </aside>
     </div>
   `;
 }
-
 function agendaItem(time, title, meta, tone) {
   return `
     <article class="agenda-item">
@@ -388,11 +865,89 @@ function agendaItem(time, title, meta, tone) {
 }
 
 function renderReps() {
+  if (state.isOwner) {
+    const dashboardSelect = dashboardOptions()
+      .map((dashboard) => `<option value="${dashboard.key}">${dashboard.label}</option>`)
+      .join("");
+
+    return `
+      <div class="page-grid">
+        ${pageTitle("Owner Console", "Configure Class Flow for Mbarara University and monitor platform issues.")}
+        <div class="stats-grid">
+          ${statCard("users", "Users", "—", "Connected through Supabase Auth", "")}
+          ${statCard("clipboard", "Courses", String(Object.keys(COURSE_CODES).length).padStart(2, "0"), "Detected From Class Email", "")}
+          ${statCard("alarm", "Admin Emails", String(PRESIDENT_EMAILS.length).padStart(2, "0"), "Class President Access", "red")}
+        </div>
+        <section class="content-card form-card">
+          <h2><span class="stat-icon">${icon("edit")}</span> Platform Configuration</h2>
+          <div class="owner-grid">
+            <article>
+              <span class="field-label">University</span>
+              <strong>${UNIVERSITIES[0]}</strong>
+            </article>
+            <article>
+              <span class="field-label">Courses</span>
+              <p>${Object.entries(COURSE_CODES).map(([code, course]) => `${code} - ${course} (${courseDuration(code)} years)`).join(", ")}</p>
+            </article>
+            <article>
+              <span class="field-label">President Emails</span>
+              <p>${PRESIDENT_EMAILS.join(", ")}</p>
+            </article>
+            <article>
+              <span class="field-label">Owner Emails</span>
+              <p>${OWNER_EMAILS.join(", ")}</p>
+            </article>
+          </div>
+        </section>
+        <section class="content-card form-card">
+          <h2><span class="stat-icon">${icon("edit")}</span> Publish To A Class</h2>
+          <form id="postForm" class="form-grid">
+            <label class="form-control">
+              <span class="field-label">Target Dashboard</span>
+              <select name="dashboard_key" required>${dashboardSelect}</select>
+            </label>
+            <label class="form-control">
+              <span class="field-label">Update Title</span>
+              <input name="title" placeholder="e.g. Midterm Lab Report Guidelines" required />
+            </label>
+            <div class="form-grid two">
+              <label class="form-control">
+                <span class="field-label">Type</span>
+                <select name="type">
+                  <option>Announcement</option>
+                  <option>Assignment</option>
+                  <option>Test</option>
+                  <option>Exam</option>
+                </select>
+              </label>
+              <label class="form-control">
+                <span class="field-label">Deadline</span>
+                <input name="due" type="date" />
+              </label>
+            </div>
+            <label class="form-control">
+              <span class="field-label">Description</span>
+              <textarea name="description" placeholder="Detail the requirements or instructions here..." required></textarea>
+            </label>
+            <label class="form-control">
+              <span class="field-label">Link or Place</span>
+              <input name="resource_link" placeholder="Paste a link, room, platform, or where to submit" />
+            </label>
+            <div class="form-actions">
+              <button class="secondary-action" type="reset">Discard</button>
+              <button class="primary-action" type="submit">Publish Post</button>
+            </div>
+          </form>
+        </section>
+      </div>
+    `;
+  }
+
   if (!state.isAdmin) {
     return `
       <div class="page-grid">
         ${pageTitle("Administrator Panel", "Only the admin account can create or change class updates.")}
-        ${emptyCard("Sign in with classflow256@gmail.com to access publishing tools.")}
+        ${emptyCard("Class presidents get access automatically when they sign up with an approved admin email.")}
       </div>
     `;
   }
@@ -404,7 +959,7 @@ function renderReps() {
           <div>
             <p class="eyebrow">Administrator Panel</p>
             <h1 class="rep-title">Rep Console</h1>
-            <p style="color:#45506a; line-height:1.45">Manage academic updates and coordinate with your class.</p>
+            <p style="color: var(--muted); line-height:1.45">Manage academic updates and coordinate with your class.</p>
           </div>
           <button class="primary-action" type="button" data-focus-post>${icon("plus")} Create New Update</button>
         </div>
@@ -421,6 +976,7 @@ function renderReps() {
                 <select name="type">
                   <option>Announcement</option>
                   <option>Assignment</option>
+                  <option>Test</option>
                   <option>Exam</option>
                 </select>
               </label>
@@ -432,6 +988,10 @@ function renderReps() {
             <label class="form-control">
               <span class="field-label">Description</span>
               <textarea name="description" placeholder="Detail the requirements or instructions here..." required></textarea>
+            </label>
+            <label class="form-control">
+              <span class="field-label">Link or Place</span>
+              <input name="resource_link" placeholder="Paste a link, room, platform, or where to submit" />
             </label>
             <div class="form-actions">
               <button class="secondary-action" type="reset">Discard</button>
@@ -475,10 +1035,140 @@ function emptyCard(message) {
   return `<article class="content-card announcement"><p>${message}</p></article>`;
 }
 
+function taskDetailModal(task) {
+  const resource = task.resourceLink || "";
+  const resourceIsUrl = /^https?:\/\//i.test(resource);
+  return `
+    <h2 id="modalTitle">${task.title}</h2>
+    <div class="form-grid" style="margin-top: 18px">
+      <p class="task-meta">${task.type} • ${task.course} ${task.code ? `(${task.code})` : ""}</p>
+      <p>${task.description}</p>
+      ${resource ? `
+        <div class="task-resource">
+          ${icon("file")}
+          ${resourceIsUrl
+            ? `<a href="${resource}" target="_blank" rel="noreferrer">${resource}</a>`
+            : `<span>${resource}</span>`}
+        </div>
+      ` : ""}
+      <div class="post-actions">
+        <span class="badge ${task.priority === "urgent" ? "red" : ""}">${task.due}</span>
+        <span class="task-meta">${icon("clock")} ${task.time || "No time set"}</span>
+      </div>
+    </div>
+  `;
+}
+
+function profileModal() {
+  const user = state.currentUser || {};
+  const avatarUrl = user.avatarUrl || "";
+  return `
+    <h2 id="modalTitle">Profile</h2>
+    <div class="profile-photo-panel">
+      <div class="profile-photo ${avatarUrl ? "has-photo" : ""}">
+        ${avatarUrl ? `<img src="${avatarUrl}" alt="Profile picture" />` : `<span>${userInitial(user)}</span>`}
+      </div>
+      <div>
+        <strong>${user.fullName || user.email || "Not signed in"}</strong>
+        <p>${state.isOwner ? "App Owner" : state.isAdmin ? "Class President" : "Student"}</p>
+      </div>
+      <label class="secondary-action avatar-upload">
+        Change Photo
+        <input type="file" accept="image/*" data-avatar-input />
+      </label>
+    </div>
+    <div class="owner-grid profile-grid">
+      <article><span class="field-label">Name</span><p>${user.fullName || "Not added"}</p></article>
+      <article><span class="field-label">Email</span><p>${user.email || "Not signed in"}</p></article>
+      <article><span class="field-label">Gender</span><p>${user.gender || "Not added"}</p></article>
+      <article><span class="field-label">Role</span><p>${state.isOwner ? "Owner" : state.isAdmin ? "Class President" : "Student"}</p></article>
+      <article><span class="field-label">Course</span><p>${user.course || "Not available"}</p></article>
+      <article><span class="field-label">Study Year</span><p>${user.studyYear || "Not available"}</p></article>
+      <article><span class="field-label">Duration</span><p>${user.courseDuration ? `${user.courseDuration} Years` : "Not available"}</p></article>
+      <article><span class="field-label">Dashboard</span><p>${user.dashboardKey || dashboardLabel()}</p></article>
+      <article><span class="field-label">Student Number</span><p>${user.studentNumber || "Not available"}</p></article>
+      <button class="danger-action" type="button" data-sign-out>Sign Out</button>
+    </div>
+  `;
+}
+
 function closeModal() {
   modalHost.classList.add("is-hidden");
   modalHost.setAttribute("aria-hidden", "true");
   modalContent.innerHTML = "";
+}
+
+async function handleAvatarUpload(file) {
+  if (!file) return;
+
+  if (!file.type.startsWith("image/")) {
+    toast("Choose an image file for your profile picture.");
+    return;
+  }
+
+  let previewUrl = "";
+  try {
+    previewUrl = await fileToDataUrl(file);
+  } catch (error) {
+    console.error(error);
+    toast("The selected image could not be opened.");
+    return;
+  }
+
+  state.currentUser = {
+    ...state.currentUser,
+    avatarUrl: previewUrl
+  };
+  updateAvatarButton();
+  modalContent.innerHTML = profileModal();
+  hydrateIcons(modalHost);
+
+  if (file.size > 6 * 1024 * 1024) {
+    toast("Photo preview updated. Choose an image under 6 MB to save it online.");
+    return;
+  }
+
+  if (!supabaseClient || !state.session?.user?.id) {
+    toast("Photo preview updated. Sign in with Supabase to save it online.");
+    return;
+  }
+
+  const extension = (file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
+  const avatarPath = `${state.session.user.id}/avatar.${extension}`;
+  const { error: uploadError } = await supabaseClient
+    .storage
+    .from("avatars")
+    .upload(avatarPath, file, {
+      cacheControl: "3600",
+      contentType: file.type,
+      upsert: true
+    });
+
+  if (uploadError) {
+    console.error(uploadError);
+    toast(uploadError.message.includes("Bucket")
+      ? "Create the avatars bucket in Supabase first, then try again."
+      : `Photo preview updated, but Supabase could not save it: ${uploadError.message}`);
+    return;
+  }
+
+  const { data } = supabaseClient.storage.from("avatars").getPublicUrl(avatarPath);
+  const publicUrl = data.publicUrl;
+  const profileSaved = await saveProfile(state.session.user.id, {
+    ...state.currentUser,
+    avatarUrl: publicUrl
+  });
+
+  state.currentUser = {
+    ...state.currentUser,
+    avatarUrl: avatarImageUrl(publicUrl)
+  };
+  updateAvatarButton();
+  modalContent.innerHTML = profileModal();
+  hydrateIcons(modalHost);
+  toast(profileSaved
+    ? "Profile picture updated."
+    : "Photo uploaded, but run the README SQL so it saves on your profile.");
 }
 
 function render() {
@@ -492,22 +1182,134 @@ function render() {
   hydrateIcons(viewStage);
 }
 
-document.querySelector("#loginForm").addEventListener("submit", (event) => {
+document.querySelector("#loginForm").addEventListener("submit", async (event) => {
   event.preventDefault();
-  const email = new FormData(event.target).get("studentEmail").trim().toLowerCase();
-  state.isAdmin = email === state.adminEmail;
-  authScreen.classList.add("is-hidden");
-  appScreen.classList.remove("is-hidden");
-  routeTo("home");
-  toast(state.isAdmin ? "Admin access enabled." : "Signed in to the ClassHub demo workspace.");
+  const form = new FormData(event.target);
+  const rawEmail = String(form.get("studentEmail") || "").trim();
+  const email = normalizeEmail(rawEmail);
+  const password = form.get("studentPassword");
+  const fullName = String(form.get("fullName") || "").trim();
+  const gender = String(form.get("gender") || "").trim();
+  const parsedProfile = parseClassEmail(rawEmail) || (state.authMode === "signup" ? null : parseClassEmail(email));
+  const profile = parsedProfile || {
+    email,
+    fullName,
+    gender,
+    year: "",
+    courseCode: "",
+    studentNumber: "",
+    regNumber: "",
+    university: UNIVERSITIES[0],
+    course: "Platform Administration",
+    courseDuration: "",
+    studyYear: "",
+    dashboardKey: "owner"
+  };
+  profile.fullName = fullName || profile.fullName || "";
+  profile.gender = gender || profile.gender || "";
+  let role = roleForEmail(email);
+  let resolvedProfile = {
+    ...profile,
+    role,
+    avatarUrl: ""
+  };
+
+  if (state.authMode === "signup" && role !== "owner" && !parsedProfile) {
+    toast("Use a valid lowercase MUST email with an approved course code, for example 2025bit196@std.must.ac.ug.");
+    return;
+  }
+
+  if (supabaseClient) {
+    const authRequest = state.authMode === "signup"
+      ? supabaseClient.auth.signUp({
+          email,
+          password,
+          options: {
+            data: {
+              full_name: profile.fullName,
+              gender: profile.gender,
+              reg_number: profile.regNumber,
+              university: profile.university,
+              course: profile.course,
+              year_joined: profile.year,
+              course_code: profile.courseCode,
+              student_number: profile.studentNumber,
+              course_duration: profile.courseDuration,
+              study_year: profile.studyYear,
+              dashboard_key: profile.dashboardKey,
+              role
+            }
+          }
+        })
+      : supabaseClient.auth.signInWithPassword({ email, password });
+
+    const { data, error } = await authRequest;
+
+    if (error) {
+      const message = error.message.toLowerCase().includes("rate")
+        ? "Supabase email limit reached. Turn off Confirm email in Supabase Auth settings, then try again."
+        : error.message;
+      toast(message);
+      return;
+    }
+
+    state.session = data.session;
+    if (!state.session) {
+      toast("Signup is waiting for email confirmation. Turn off Confirm email in Supabase for instant access.");
+      return;
+    }
+
+    role = await roleForSignedInEmail(email);
+    resolvedProfile = {
+      ...resolvedProfile,
+      role
+    };
+    if (state.authMode === "signup") {
+      await saveProfile(data.user?.id, {
+        ...profile,
+        role
+      });
+    }
+    resolvedProfile = await loadUserProfile(data.user?.id, resolvedProfile);
+    resolvedProfile.role = role;
+  }
+
+  setUserRole(resolvedProfile);
+  showDashboard();
+  await loadClassItems();
+  toast(state.isOwner ? "Owner access enabled." : state.isAdmin ? "Admin access enabled." : "Signed in to the Class Flow workspace.");
 });
 
-document.querySelector("#togglePassword").addEventListener("click", () => {
-  const input = document.querySelector("#studentPassword");
-  input.type = input.type === "password" ? "text" : "password";
-});
+function renderAuth() {
+  document.querySelector("#loginForm").innerHTML = renderAuthForm();
+  hydrateIcons(document.querySelector("#loginForm"));
+}
 
-document.addEventListener("click", (event) => {
+document.addEventListener("click", async (event) => {
+  const authModeButton = event.target.closest("[data-auth-mode]");
+  if (authModeButton) {
+    state.authMode = authModeButton.dataset.authMode;
+    renderAuth();
+    return;
+  }
+
+  if (event.target.closest("#togglePassword")) {
+    const input = document.querySelector("#studentPassword");
+    input.type = input.type === "password" ? "text" : "password";
+    return;
+  }
+
+  if (event.target.closest("#forgotBtn")) {
+    const email = normalizeEmail(document.querySelector("#studentEmail")?.value || "");
+    if (!email || !supabaseClient) {
+      toast("Enter your class email first, then click Forgot Password.");
+      return;
+    }
+    supabaseClient.auth.resetPasswordForEmail(email)
+      .then(({ error }) => toast(error ? error.message : "Password reset email sent if the account exists."));
+    return;
+  }
+
   const routeButton = event.target.closest("[data-route]");
   if (routeButton) {
     event.preventDefault();
@@ -535,24 +1337,30 @@ document.addEventListener("click", (event) => {
   }
 
   if (event.target.closest("[data-calendar-today]")) {
-    state.selectedCalendarDay = 10;
+    state.calendarDate = new Date();
+    state.selectedCalendarDay = new Date().getDate();
     render();
-    toast("Jumped to the highlighted class week.");
     return;
   }
 
-  if (event.target.closest("[data-calendar-prev]") || event.target.closest("[data-calendar-next]")) {
-    toast("Month switching is ready for a Supabase-backed calendar feed.");
+  if (event.target.closest("[data-calendar-prev]")) {
+    state.calendarDate = new Date(state.calendarDate.getFullYear(), state.calendarDate.getMonth() - 1, 1);
+    state.selectedCalendarDay = 1;
+    render();
     return;
   }
 
-  if (event.target.closest("[data-map]")) {
-    toast("Campus map module placeholder opened.");
+  if (event.target.closest("[data-calendar-next]")) {
+    state.calendarDate = new Date(state.calendarDate.getFullYear(), state.calendarDate.getMonth() + 1, 1);
+    state.selectedCalendarDay = 1;
+    render();
     return;
   }
 
   if (event.target.closest("[data-filter-menu]")) {
-    toast("Advanced filters can connect to courses, tags, and reps.");
+    state.search = "";
+    state.taskFilter = "All Tasks";
+    render();
     return;
   }
 
@@ -563,14 +1371,77 @@ document.addEventListener("click", (event) => {
 
   const deleteButton = event.target.closest("[data-delete-post]");
   if (deleteButton && state.isAdmin) {
-    state.posts = state.posts.filter((post) => post.id !== Number(deleteButton.dataset.deletePost));
+    const id = deleteButton.dataset.deletePost;
+    if (supabaseClient) {
+      const { error } = await supabaseClient.from("class_items").delete().eq("id", id);
+      if (error) {
+        toast(error.message);
+        return;
+      }
+    }
+    state.tasks = state.tasks.filter((task) => String(task.id) !== String(id));
+    state.posts = state.posts.filter((post) => String(post.id) !== String(id));
     render();
-    toast("Post removed from the local demo feed.");
+    toast("Item removed.");
     return;
   }
 
-  if (event.target.closest("[data-edit-post]")) {
-    toast("Post editor is ready to connect to Supabase updates.");
+  const doneButton = event.target.closest("[data-mark-done]");
+  if (doneButton) {
+    await markTaskDone(doneButton.dataset.markDone);
+    return;
+  }
+
+  const taskButton = event.target.closest("[data-task-action]");
+  if (taskButton) {
+    const task = state.tasks.find((item) => String(item.id) === String(taskButton.dataset.taskAction));
+    if (task) openModal(taskDetailModal(task));
+    return;
+  }
+
+  if (event.target.closest("#globalSearchBtn")) {
+    routeTo("tasks");
+    requestAnimationFrame(() => document.querySelector("#taskSearch")?.focus());
+    return;
+  }
+
+  if (event.target.closest("#notificationsBtn")) {
+    const urgent = state.tasks.filter((task) => task.priority === "urgent");
+    openModal(`
+      <h2 id="modalTitle">Notifications</h2>
+      <div class="announcement-list" style="margin-top: 18px">
+        ${urgent.length ? urgent.map(taskCard).join("") : emptyCard("No urgent notifications.")}
+      </div>
+    `);
+    return;
+  }
+
+  if (event.target.closest("#profileBtn")) {
+    openModal(profileModal());
+    return;
+  }
+
+  if (event.target.closest("[data-sign-out]")) {
+    if (supabaseClient) await supabaseClient.auth.signOut();
+    state.session = null;
+    state.currentUser = null;
+    state.isAdmin = false;
+    state.isOwner = false;
+    state.tasks = [];
+    state.completedTaskIds = new Set();
+    updateAvatarButton();
+    closeModal();
+    appScreen.classList.add("is-hidden");
+    authScreen.classList.remove("is-hidden");
+    renderAuth();
+  }
+});
+
+document.addEventListener("change", async (event) => {
+  if (event.target.matches("[data-avatar-input]")) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    await handleAvatarUpload(file);
   }
 });
 
@@ -584,54 +1455,67 @@ document.addEventListener("input", (event) => {
   }
 });
 
-document.addEventListener("submit", (event) => {
+document.addEventListener("submit", async (event) => {
   if (event.target.id === "postForm") {
     event.preventDefault();
     if (!state.isAdmin) {
       toast("Only the admin can publish posts.");
       return;
     }
+
     const form = new FormData(event.target);
-    state.tasks.unshift({
-      id: Date.now(),
-      type: form.get("type"),
-      course: "Class Update",
-      code: "NEW",
-      title: form.get("title"),
-      description: form.get("description"),
-      due: form.get("due") ? `Due ${form.get("due")}` : "Just Now",
-      time: "TBD",
-      priority: "normal",
-      status: "New"
-    });
+    const payload = taskPayloadFromForm(form);
+    let task = taskFromRow({ id: Date.now(), ...payload });
+
+    if (supabaseClient) {
+      let { data, error } = await supabaseClient
+        .from("class_items")
+        .insert(payload)
+        .select()
+        .single();
+
+      if (error && error.message.toLowerCase().includes("resource_link")) {
+        const { resource_link: _resourceLink, ...payloadWithoutResource } = payload;
+        const retry = await supabaseClient
+          .from("class_items")
+          .insert(payloadWithoutResource)
+          .select()
+          .single();
+        data = retry.data;
+        error = retry.error;
+        if (!error) {
+          toast("Task posted. Run the README SQL so links can save too.");
+        }
+      }
+
+      if (error) {
+        console.error(error);
+        toast(error.message);
+        return;
+      }
+
+      task = taskFromRow(data);
+    }
+
+    state.tasks.unshift(task);
     state.posts.unshift({
       id: Date.now(),
-      type: form.get("type"),
-      title: form.get("title"),
-      description: form.get("description"),
-      due: form.get("due") ? `Due ${form.get("due")}` : "Priority: Normal",
+      type: payload.type,
+      title: payload.title,
+      description: payload.description,
+      due: payload.due,
       posted: "Just now",
-      priority: "normal"
+      priority: payload.priority
     });
     event.target.reset();
     render();
-    toast("Post published to the local demo feed.");
+    toast(supabaseClient ? "Post published to Supabase." : "Post published locally for this session.");
   }
 });
 
-document.querySelector("#forgotBtn").addEventListener("click", () => {
-  toast("Password recovery screen placeholder ready.");
-});
-
-document.querySelector("#notificationsBtn").addEventListener("click", () => {
-  toast("You have 3 academic alerts waiting.");
-});
-
-document.querySelector("#profileBtn").addEventListener("click", () => {
-  toast("Profile menu placeholder ready for account settings.");
-});
-
+renderAuth();
 hydrateIcons();
 render();
+
 
 

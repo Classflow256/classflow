@@ -3,30 +3,25 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ClassHub Academic Portal</title>
+    <title>Class Flow Academic Portal</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
     <div class="site-shell">
       <section class="auth-screen" id="authScreen">
         <div class="auth-art" aria-hidden="true">
-          <img src="assets/classhub-glow.png" alt="" />
+          <img src="assets/classflow-logo.png" alt="" />
+          <div class="auth-art-brand">
+            <span>Class Flow</span>
+          </div>
           <div class="auth-art-copy">
-            <p>Academic command center</p>
-            <h1>Tasks, deadlines, courses, and class updates in one calm place.</h1>
+            <h1>Your course, assignments, tests, and exams in one focused space.</h1>
           </div>
         </div>
 
         <form class="auth-card" id="loginForm">
-          <a class="brand-mark auth-brand" href="#" aria-label="ClassHub home">
-            <span class="brand-icon" aria-hidden="true"></span>
-            <span>ClassHub</span>
-          </a>
-
           <div class="auth-heading">
-            <p class="eyebrow">Secure student terminal</p>
             <h2>Welcome Back</h2>
-            <p>Access your academic records, deadlines, and class updates.</p>
           </div>
 
           <label class="field-label" for="studentEmail">Student Email</label>
@@ -57,14 +52,6 @@
             <span data-icon="log-in"></span>
           </button>
 
-          <div class="policy-note">
-            <span data-icon="shield"></span>
-            <p>
-              This is a secure academic terminal. By signing in, you agree to our
-              <a href="#">Academic Integrity Policy</a> and
-              <a href="#">Data Usage Agreement</a>.
-            </p>
-          </div>
         </form>
       </section>
 
@@ -73,9 +60,9 @@
           <button class="icon-button menu-toggle" type="button" id="menuToggle" aria-label="Open navigation" title="Open navigation">
             <span data-icon="menu"></span>
           </button>
-          <a class="brand-mark" href="#" data-route="home" aria-label="ClassHub home">
-            <span class="brand-icon" aria-hidden="true"></span>
-            <span>ClassHub</span>
+          <a class="brand-mark" href="#" data-route="home" aria-label="Class Flow home">
+            <img class="brand-logo" src="assets/classflow-logo.png" alt="" />
+            <span>Class Flow</span>
           </a>
           <div class="topbar-actions">
             <button class="icon-button desktop-only" type="button" id="globalSearchBtn" aria-label="Search" title="Search">
@@ -103,7 +90,7 @@
           </button>
           <button class="nav-item" data-route="reps" type="button">
             <span data-icon="users"></span>
-            <span>Reps</span>
+            <span>Admin</span>
           </button>
         </aside>
 
@@ -124,7 +111,7 @@
           </button>
           <button class="nav-item" data-route="reps" type="button">
             <span data-icon="users"></span>
-            <span>Reps</span>
+            <span>Admin</span>
           </button>
         </nav>
       </section>
@@ -141,6 +128,7 @@
     </div>
 
     <div class="toast-stack" id="toastStack" aria-live="polite" aria-atomic="true"></div>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="app.js"></script>
   </body>
 </html>

@@ -367,10 +367,6 @@ function calendarTypeClass(type) {
   return "announcement";
 }
 
-function calendarCount(tasks, type) {
-  return tasks.filter((task) => task.type === type).length;
-}
-
 function visibleTasks() {
   const query = state.search.toLowerCase();
   return state.tasks.filter((task) => {
@@ -867,10 +863,6 @@ function renderCalendar() {
   const weekdays = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
   const selectedDate = new Date(year, month, selectedDay);
   const agenda = tasksOnDate(selectedDate).sort((a, b) => String(a.time || a.due).localeCompare(String(b.time || b.due)));
-  const monthEvents = state.tasks.filter((task) => {
-    const date = taskDate(task);
-    return date && date.getFullYear() === year && date.getMonth() === month;
-  });
   const selectedMonth = selectedDate.toLocaleDateString("en-US", { month: "short" }).toUpperCase();
 
   return `
@@ -922,24 +914,6 @@ function renderCalendar() {
       </section>
 
       <aside class="calendar-side">
-        <section class="content-card calendar-summary-card">
-          <div class="selected-date-card">
-            <span>${selectedDate.toLocaleDateString("en-US", { weekday: "short" })}</span>
-            <strong>${String(selectedDay).padStart(2, "0")}</strong>
-            <p>${monthTitle(selectedDate)}</p>
-          </div>
-          <div>
-            <span class="card-kicker">This Month</span>
-            <h2>${monthEvents.length} Scheduled</h2>
-            <p class="muted-text">${agenda.length ? `${agenda.length} item${agenda.length === 1 ? "" : "s"} on the selected day.` : "Pick any marked date to see what is planned."}</p>
-          </div>
-          <div class="summary-counts">
-            <span><strong>${calendarCount(monthEvents, "Assignment")}</strong> Assignments</span>
-            <span><strong>${calendarCount(monthEvents, "Test")}</strong> Tests</span>
-            <span><strong>${calendarCount(monthEvents, "Exam")}</strong> Exams</span>
-          </div>
-        </section>
-
         <section class="content-card legend-card">
           <div class="legend-row">
             <span class="legend-dot assignment"></span><span>Assignment</span>

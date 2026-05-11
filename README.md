@@ -58,6 +58,10 @@ create table if not exists public.class_items (
   description text not null,
   due text,
   time text,
+  start_date date,
+  start_time time,
+  end_date date,
+  end_time time,
   resource_link text,
   priority text default 'normal',
   status text default 'New',
@@ -67,6 +71,10 @@ create table if not exists public.class_items (
 
 alter table public.class_items add column if not exists dashboard_key text;
 alter table public.class_items add column if not exists resource_link text;
+alter table public.class_items add column if not exists start_date date;
+alter table public.class_items add column if not exists start_time time;
+alter table public.class_items add column if not exists end_date date;
+alter table public.class_items add column if not exists end_time time;
 
 create table if not exists public.app_roles (
   email text primary key,
@@ -349,7 +357,7 @@ The app currently knows these special emails in `app.js`:
 
 Replace those constants with the real president and owner emails before launch. Students with normal MUST class emails automatically get student access and are routed to the dashboard for their year/course.
 
-Owners can publish to any configured year/course dashboard. Class presidents can publish only to their own dashboard. When adding a task, the `resource_link` field can store a URL, room, platform name, or submission location.
+Owners can publish to any configured year/course dashboard. Class presidents can publish only to their own dashboard. When adding a task, the `start_date`, `start_time`, `end_date`, and `end_time` fields store the full schedule, while `resource_link` can store a URL, room, platform name, or submission location.
 
 Profile pictures upload to the `avatars` bucket and the public URL is saved in `profiles.avatar_url`.
 

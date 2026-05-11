@@ -302,6 +302,47 @@ function formatDate(date) {
   });
 }
 
+function localDateInputValue(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function localTimeInputValue(date = new Date()) {
+  return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+}
+
+function dateFromInput(value) {
+  if (!value) return null;
+  const [year, month, day] = String(value).split("-").map(Number);
+  if (!year || !month || !day) return null;
+  return new Date(year, month - 1, day);
+}
+
+function dateTimeFromParts(dateValue, timeValue = "00:00") {
+  const date = dateFromInput(dateValue);
+  if (!date) return null;
+  const [hours = 0, minutes = 0] = String(timeValue || "00:00").split(":").map(Number);
+  date.setHours(hours || 0, minutes || 0, 0, 0);
+  return date;
+}
+
+function formatInputDate(value) {
+  const date = dateFromInput(value);
+  if (!date) return "";
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
+function formatInputTime(value) {
+  if (!value) return "";
+  const [hours, minutes] = String(value).split(":").map(Number);
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return value;
+  const date = new Date();
+  date.setHours(hours, minutes, 0, 0);
+  return date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+}
+
 function monthTitle(date) {
   return date.toLocaleDateString("en-US", {
     month: "long",
@@ -310,9 +351,47 @@ function monthTitle(date) {
 }
 
 function taskDate(task) {
+  if (task.endDate) return dateFromInput(task.endDate);
   const raw = String(task.due || "").replace(/^Due\s+/i, "");
   const parsed = new Date(raw);
   return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function taskStartDate(task) {
+  return dateFromInput(task.startDate) || taskDate(task);
+}
+
+function taskEndDate(task) {
+  return dateFromInput(task.endDate) || taskStartDate(task);
+}
+
+function taskOccursOnDate(task, date) {
+  const startSource = taskStartDate(task);
+  const endSource = taskEndDate(task);
+  if (!startSource || !endSource || !date) return false;
+  const start = startOfDay(startSource);
+  const end = startOfDay(endSource);
+  const target = startOfDay(date);
+  return start && end && target >= start && target <= end;
+}
+
+function scheduleRange(task) {
+  const startDate = formatInputDate(task.startDate);
+  const endDate = formatInputDate(task.endDate);
+  const startTime = formatInputTime(task.startTime);
+  const endTime = formatInputTime(task.endTime);
+
+  if (startDate && endDate) {
+    const sameDate = task.startDate === task.endDate;
+    const timeText = startTime && endTime
+      ? `${startTime} - ${endTime}`
+      : startTime || endTime || "";
+    return sameDate
+      ? `${startDate}${timeText ? `, ${timeText}` : ""}`
+      : `${startDate}${startTime ? `, ${startTime}` : ""} - ${endDate}${endTime ? `, ${endTime}` : ""}`;
+  }
+
+  return task.time || task.due || "No schedule set";
 }
 
 function isSameDay(a, b) {
@@ -356,7 +435,7 @@ function setCalendarMonth(year, month, selectedDay = state.selectedCalendarDay) 
 }
 
 function tasksOnDate(date) {
-  return state.tasks.filter((task) => isSameDay(taskDate(task), date));
+  return state.tasks.filter((task) => taskOccursOnDate(task, date));
 }
 
 function calendarTypeClass(type) {
@@ -505,6 +584,10 @@ function taskFromRow(row) {
     description: row.description,
     due: row.due || "Just Now",
     time: row.time || "",
+    startDate: row.start_date || "",
+    startTime: row.start_time ? String(row.start_time).slice(0, 5) : "",
+    endDate: row.end_date || "",
+    endTime: row.end_time ? String(row.end_time).slice(0, 5) : "",
     priority: row.priority || "normal",
     status: row.status || "New",
     resourceLink: row.resource_link || "",
@@ -514,7 +597,10 @@ function taskFromRow(row) {
 
 function taskPayloadFromForm(form) {
   const type = form.get("type");
-  const due = form.get("due");
+  const startDate = String(form.get("start_date") || localDateInputValue()).trim();
+  const startTime = String(form.get("start_time") || localTimeInputValue()).trim();
+  const endDate = String(form.get("end_date") || "").trim();
+  const endTime = String(form.get("end_time") || "").trim();
   const dashboardKey = form.get("dashboard_key") || state.currentUser?.dashboardKey || "";
   const resourceLink = String(form.get("resource_link") || "").trim();
   return {
@@ -523,8 +609,12 @@ function taskPayloadFromForm(form) {
     code: "NEW",
     title: form.get("title"),
     description: form.get("description"),
-    due: due ? `Due ${due}` : "Just Now",
-    time: "TBD",
+    due: endDate ? `Due ${endDate}` : "Just Now",
+    time: startTime && endTime ? `${startTime} - ${endTime}` : startTime || endTime || "",
+    start_date: startDate,
+    start_time: startTime || null,
+    end_date: endDate || null,
+    end_time: endTime || null,
     priority: type === "Announcement" ? "normal" : "upcoming",
     status: "New",
     resource_link: resourceLink,
@@ -825,8 +915,7 @@ function taskCard(task) {
       ` : ""}
       <div class="task-footer">
         <div class="task-meta">
-          <span>${icon("clock")} ${task.time || task.due}</span>
-          <span>${task.due}</span>
+          <span>${icon("clock")} ${scheduleRange(task)}</span>
         </div>
         <div class="task-buttons">
           ${task.type === "Assignment" && !done ? `<button class="tiny-button secondary" data-mark-done="${task.id}" type="button">Mark as Done</button>` : ""}
@@ -941,14 +1030,14 @@ function agendaItem(task) {
   const resource = task.resourceLink || "";
   return `
     <article class="agenda-item">
-      <span class="agenda-time">${task.time || task.due || "All day"}</span>
+      <span class="agenda-time">${task.startTime ? formatInputTime(task.startTime) : task.time || "All day"}</span>
       <div class="agenda-box ${type} ${task.priority === "urgent" ? "danger" : ""} ${done ? "is-done" : ""}">
         <div class="task-tags">
           <span class="badge ${task.priority === "urgent" ? "red" : ""}">${done ? "Done" : task.type}</span>
           ${task.priority === "urgent" && !done ? `<span class="badge red">Due Soon</span>` : ""}
         </div>
         <h3>${task.title}</h3>
-        <p class="task-meta">${task.course}</p>
+        <p class="task-meta">${task.course} &bull; ${scheduleRange(task)}</p>
         ${resource ? `<p class="agenda-resource">${icon("file")} ${/^https?:\/\//i.test(resource) ? `<a href="${resource}" target="_blank" rel="noreferrer">Open Link</a>` : resource}</p>` : ""}
         <div class="agenda-actions">
           ${task.type === "Assignment" && !done ? `<button class="tiny-button secondary" type="button" data-mark-done="${task.id}">Mark as Done</button>` : ""}
@@ -956,6 +1045,30 @@ function agendaItem(task) {
         </div>
       </div>
     </article>
+  `;
+}
+
+function postScheduleFields() {
+  const now = new Date();
+  return `
+    <div class="form-grid four schedule-grid">
+      <label class="form-control">
+        <span class="field-label">Start Date</span>
+        <input name="start_date" type="date" value="${localDateInputValue(now)}" required />
+      </label>
+      <label class="form-control">
+        <span class="field-label">Start Time</span>
+        <input name="start_time" type="time" value="${localTimeInputValue(now)}" required />
+      </label>
+      <label class="form-control">
+        <span class="field-label">End / Due Date</span>
+        <input name="end_date" type="date" required />
+      </label>
+      <label class="form-control">
+        <span class="field-label">End / Due Time</span>
+        <input name="end_time" type="time" required />
+      </label>
+    </div>
   `;
 }
 
@@ -1015,11 +1128,8 @@ function renderReps() {
                   <option>Exam</option>
                 </select>
               </label>
-              <label class="form-control">
-                <span class="field-label">Deadline</span>
-                <input name="due" type="date" />
-              </label>
             </div>
+            ${postScheduleFields()}
             <label class="form-control">
               <span class="field-label">Description</span>
               <textarea name="description" placeholder="Detail the requirements or instructions here..." required></textarea>
@@ -1075,11 +1185,8 @@ function renderReps() {
                   <option>Exam</option>
                 </select>
               </label>
-              <label class="form-control">
-                <span class="field-label">Deadline</span>
-                <input name="due" type="date" />
-              </label>
             </div>
+            ${postScheduleFields()}
             <label class="form-control">
               <span class="field-label">Description</span>
               <textarea name="description" placeholder="Detail the requirements or instructions here..." required></textarea>
@@ -1117,6 +1224,7 @@ function postCard(post) {
       <p>${post.description}</p>
       <div class="post-actions">
         <span class="badge ${post.priority === "high" ? "red" : ""}">${post.due}</span>
+        <span class="task-meta">${icon("clock")} ${scheduleRange(post)}</span>
         <span class="task-meta">
           <button class="icon-button ghost" type="button" data-edit-post="${post.id}" aria-label="Edit post">${icon("edit")}</button>
           <button class="icon-button ghost" type="button" data-delete-post="${post.id}" aria-label="Delete post">${icon("trash")}</button>
@@ -1148,7 +1256,7 @@ function taskDetailModal(task) {
       ` : ""}
       <div class="post-actions">
         <span class="badge ${task.priority === "urgent" ? "red" : ""}">${task.due}</span>
-        <span class="task-meta">${icon("clock")} ${task.time || "No time set"}</span>
+        <span class="task-meta">${icon("clock")} ${scheduleRange(task)}</span>
       </div>
     </div>
   `;
@@ -1570,6 +1678,16 @@ document.addEventListener("submit", async (event) => {
 
     const form = new FormData(event.target);
     const payload = taskPayloadFromForm(form);
+    const startDateTime = dateTimeFromParts(payload.start_date, payload.start_time);
+    const endDateTime = dateTimeFromParts(payload.end_date, payload.end_time);
+    if (!endDateTime) {
+      toast("Set the end or due date and time.");
+      return;
+    }
+    if (startDateTime && endDateTime < startDateTime) {
+      toast("End time must be after the start time.");
+      return;
+    }
     let task = taskFromRow({ id: Date.now(), ...payload });
 
     if (supabaseClient) {
@@ -1609,6 +1727,11 @@ document.addEventListener("submit", async (event) => {
       title: payload.title,
       description: payload.description,
       due: payload.due,
+      time: payload.time,
+      startDate: payload.start_date,
+      startTime: payload.start_time,
+      endDate: payload.end_date,
+      endTime: payload.end_time,
       posted: "Just now",
       priority: payload.priority
     });

@@ -322,6 +322,55 @@ function isSameDay(a, b) {
     a.getDate() === b.getDate();
 }
 
+function monthOptions(selectedMonth) {
+  return Array.from({ length: 12 }, (_, index) => {
+    const label = new Date(2025, index, 1).toLocaleDateString("en-US", { month: "long" });
+    return `<option value="${index}" ${index === selectedMonth ? "selected" : ""}>${label}</option>`;
+  }).join("");
+}
+
+function yearOptions(selectedYear) {
+  const currentYear = new Date().getFullYear();
+  const years = new Set([
+    currentYear - 1,
+    currentYear,
+    currentYear + 1,
+    ...SUPPORTED_YEARS.map(Number)
+  ]);
+
+  return Array.from(years)
+    .filter((year) => Number.isFinite(year))
+    .sort((a, b) => a - b)
+    .map((year) => `<option value="${year}" ${year === selectedYear ? "selected" : ""}>${year}</option>`)
+    .join("");
+}
+
+function daysInMonth(year, month) {
+  return new Date(year, month + 1, 0).getDate();
+}
+
+function setCalendarMonth(year, month, selectedDay = state.selectedCalendarDay) {
+  const safeDay = Math.min(Math.max(1, selectedDay), daysInMonth(year, month));
+  state.calendarDate = new Date(year, month, 1);
+  state.selectedCalendarDay = safeDay;
+}
+
+function tasksOnDate(date) {
+  return state.tasks.filter((task) => isSameDay(taskDate(task), date));
+}
+
+function calendarTypeClass(type) {
+  const normalized = String(type || "").toLowerCase();
+  if (normalized === "assignment") return "assignment";
+  if (normalized === "test") return "test";
+  if (normalized === "exam") return "exam";
+  return "announcement";
+}
+
+function calendarCount(tasks, type) {
+  return tasks.filter((task) => task.type === type).length;
+}
+
 function visibleTasks() {
   const query = state.search.toLowerCase();
   return state.tasks.filter((task) => {
@@ -804,26 +853,51 @@ function progressRow(label, value, width) {
 function renderCalendar() {
   const year = state.calendarDate.getFullYear();
   const month = state.calendarDate.getMonth();
+  const selectedDay = Math.min(state.selectedCalendarDay, daysInMonth(year, month));
+  if (selectedDay !== state.selectedCalendarDay) state.selectedCalendarDay = selectedDay;
   const firstOfMonth = new Date(year, month, 1);
   const gridStart = new Date(year, month, 1 - firstOfMonth.getDay());
   const days = Array.from({ length: 42 }, (_, index) => {
     const date = new Date(gridStart);
     date.setDate(gridStart.getDate() + index);
-    const hasEvent = state.tasks.some((task) => isSameDay(taskDate(task), date));
+    const events = tasksOnDate(date);
     const today = isSameDay(date, new Date());
-    return [date, date.getMonth() !== month, hasEvent, today];
+    return { date, muted: date.getMonth() !== month, events, today };
   });
   const weekdays = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
-  const selectedDate = new Date(year, month, state.selectedCalendarDay);
-  const agenda = state.tasks.filter((task) => isSameDay(taskDate(task), selectedDate));
+  const selectedDate = new Date(year, month, selectedDay);
+  const agenda = tasksOnDate(selectedDate).sort((a, b) => String(a.time || a.due).localeCompare(String(b.time || b.due)));
+  const monthEvents = state.tasks.filter((task) => {
+    const date = taskDate(task);
+    return date && date.getFullYear() === year && date.getMonth() === month;
+  });
+  const selectedMonth = selectedDate.toLocaleDateString("en-US", { month: "short" }).toUpperCase();
 
   return `
     <div class="page-grid calendar-shell">
-      <section class="calendar-card" style="padding: clamp(16px, 4vw, 28px)">
+      <section class="calendar-card planner-card">
         <div class="calendar-toolbar">
           <div>
-            <h1>${monthTitle(state.calendarDate).replace(" ", "<br />")}</h1>
+            <span class="card-kicker">Class Planner</span>
+            <h1>Select Date</h1>
             <p>${dashboardLabel()}</p>
+          </div>
+          <div class="calendar-date-badge" aria-hidden="true">
+            <span>${selectedMonth}</span>
+            <strong>${String(selectedDay).padStart(2, "0")}</strong>
+          </div>
+        </div>
+
+        <div class="calendar-control-bar">
+          <div class="calendar-selectors">
+            <label>
+              <span>Month</span>
+              <select class="calendar-select" data-calendar-month>${monthOptions(month)}</select>
+            </label>
+            <label>
+              <span>Year</span>
+              <select class="calendar-select" data-calendar-year>${yearOptions(year)}</select>
+            </label>
           </div>
           <div class="calendar-controls">
             <button class="icon-button" type="button" data-calendar-prev aria-label="Previous month">${icon("chevron-left")}</button>
@@ -831,43 +905,81 @@ function renderCalendar() {
             <button class="icon-button" type="button" data-calendar-next aria-label="Next month">${icon("chevron-right")}</button>
           </div>
         </div>
-        <div class="calendar-grid" style="margin-top: 24px">
+
+        <div class="calendar-grid">
           ${weekdays.map((day) => `<div class="weekday">${day}</div>`).join("")}
-          ${days.map(([date, muted, hasEvent, today]) => `
-            <button class="day-cell ${muted ? "is-muted" : ""} ${date.getDate() === state.selectedCalendarDay && !muted ? "is-selected" : ""} ${hasEvent ? "has-event" : ""} ${today ? "is-today" : ""}" data-calendar-day="${muted ? "" : date.getDate()}" type="button">
-              <span>${date.getDate()}</span>
+          ${days.map(({ date, muted, events, today }) => {
+            const uniqueTypes = [...new Set(events.map((task) => calendarTypeClass(task.type)))].slice(0, 3);
+            return `
+            <button class="day-cell ${muted ? "is-muted" : ""} ${date.getDate() === selectedDay && !muted ? "is-selected" : ""} ${events.length ? "has-event" : ""} ${today ? "is-today" : ""}" data-calendar-day="${muted ? "" : date.getDate()}" type="button" ${muted ? "tabindex=\"-1\"" : ""}>
+              <span class="day-number">${date.getDate()}</span>
+              ${events.length ? `<span class="event-count">${events.length}</span>` : ""}
+              ${uniqueTypes.length ? `<span class="day-markers">${uniqueTypes.map((type) => `<i class="day-marker ${type}"></i>`).join("")}</span>` : ""}
             </button>
-          `).join("")}
+          `;
+          }).join("")}
         </div>
       </section>
 
-      <aside class="page-grid">
-        <section class="content-card legend-card">
-          <div class="legend-row">
-            <span class="legend-dot red"></span><span class="meta-line">Urgent</span>
-            <span class="legend-dot"></span><span class="meta-line">Class Item</span>
+      <aside class="calendar-side">
+        <section class="content-card calendar-summary-card">
+          <div class="selected-date-card">
+            <span>${selectedDate.toLocaleDateString("en-US", { weekday: "short" })}</span>
+            <strong>${String(selectedDay).padStart(2, "0")}</strong>
+            <p>${monthTitle(selectedDate)}</p>
+          </div>
+          <div>
+            <span class="card-kicker">This Month</span>
+            <h2>${monthEvents.length} Scheduled</h2>
+            <p class="muted-text">${agenda.length ? `${agenda.length} item${agenda.length === 1 ? "" : "s"} on the selected day.` : "Pick any marked date to see what is planned."}</p>
+          </div>
+          <div class="summary-counts">
+            <span><strong>${calendarCount(monthEvents, "Assignment")}</strong> Assignments</span>
+            <span><strong>${calendarCount(monthEvents, "Test")}</strong> Tests</span>
+            <span><strong>${calendarCount(monthEvents, "Exam")}</strong> Exams</span>
           </div>
         </section>
+
+        <section class="content-card legend-card">
+          <div class="legend-row">
+            <span class="legend-dot assignment"></span><span>Assignment</span>
+            <span class="legend-dot test"></span><span>Test</span>
+            <span class="legend-dot exam"></span><span>Exam</span>
+          </div>
+        </section>
+
         <section class="content-card agenda-card">
           <div class="agenda-header">
             <h2 class="section-title">Daily Agenda</h2>
             <span class="card-kicker">${formatDate(selectedDate)}</span>
           </div>
           <div class="agenda-list">
-            ${agenda.length ? agenda.map((task) => agendaItem(task.time || task.due, task.title, task.course, task.priority === "urgent" ? "danger" : "")).join("") : `<div class="agenda-empty">${icon("calendar")}<span>No events scheduled for this day.</span></div>`}
+            ${agenda.length ? agenda.map((task) => agendaItem(task)).join("") : `<div class="agenda-empty">${icon("calendar")}<strong>No events scheduled</strong><span>Select another date or ask the class president to add an item.</span></div>`}
           </div>
         </section>
       </aside>
     </div>
   `;
 }
-function agendaItem(time, title, meta, tone) {
+function agendaItem(task) {
+  const type = calendarTypeClass(task.type);
+  const done = isTaskDone(task);
+  const resource = task.resourceLink || "";
   return `
     <article class="agenda-item">
-      <span class="agenda-time">${time}</span>
-      <div class="agenda-box ${tone}">
-        <h3>${title}</h3>
-        <p class="task-meta">${meta}</p>
+      <span class="agenda-time">${task.time || task.due || "All day"}</span>
+      <div class="agenda-box ${type} ${task.priority === "urgent" ? "danger" : ""} ${done ? "is-done" : ""}">
+        <div class="task-tags">
+          <span class="badge ${task.priority === "urgent" ? "red" : ""}">${done ? "Done" : task.type}</span>
+          ${task.priority === "urgent" && !done ? `<span class="badge red">Due Soon</span>` : ""}
+        </div>
+        <h3>${task.title}</h3>
+        <p class="task-meta">${task.course}</p>
+        ${resource ? `<p class="agenda-resource">${icon("file")} ${/^https?:\/\//i.test(resource) ? `<a href="${resource}" target="_blank" rel="noreferrer">Open Link</a>` : resource}</p>` : ""}
+        <div class="agenda-actions">
+          ${task.type === "Assignment" && !done ? `<button class="tiny-button secondary" type="button" data-mark-done="${task.id}">Mark as Done</button>` : ""}
+          <button class="tiny-button" type="button" data-task-action="${task.id}">Details</button>
+        </div>
       </div>
     </article>
   `;
@@ -1353,15 +1465,13 @@ document.addEventListener("click", async (event) => {
   }
 
   if (event.target.closest("[data-calendar-prev]")) {
-    state.calendarDate = new Date(state.calendarDate.getFullYear(), state.calendarDate.getMonth() - 1, 1);
-    state.selectedCalendarDay = 1;
+    setCalendarMonth(state.calendarDate.getFullYear(), state.calendarDate.getMonth() - 1);
     render();
     return;
   }
 
   if (event.target.closest("[data-calendar-next]")) {
-    state.calendarDate = new Date(state.calendarDate.getFullYear(), state.calendarDate.getMonth() + 1, 1);
-    state.selectedCalendarDay = 1;
+    setCalendarMonth(state.calendarDate.getFullYear(), state.calendarDate.getMonth() + 1);
     render();
     return;
   }
@@ -1447,6 +1557,18 @@ document.addEventListener("click", async (event) => {
 });
 
 document.addEventListener("change", async (event) => {
+  if (event.target.matches("[data-calendar-month]")) {
+    setCalendarMonth(state.calendarDate.getFullYear(), Number(event.target.value));
+    render();
+    return;
+  }
+
+  if (event.target.matches("[data-calendar-year]")) {
+    setCalendarMonth(Number(event.target.value), state.calendarDate.getMonth());
+    render();
+    return;
+  }
+
   if (event.target.matches("[data-avatar-input]")) {
     const file = event.target.files?.[0];
     event.target.value = "";

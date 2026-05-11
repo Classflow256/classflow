@@ -95,6 +95,12 @@ const CURRENT_COHORT_YEAR = 2025;
 const SUPPORTED_YEARS = ["2025", "2024", "2023", "2022", "2021"];
 const PRESIDENT_EMAILS = ["2025bit196@std.must.ac.ug"];
 const OWNER_EMAILS = ["owner@classflow256.com"];
+const STAT_ICON_IMAGES = {
+  assignments: "assets/stat-assignments.jpg",
+  dueSoon: "assets/stat-due-soon.jpg",
+  tests: "assets/stat-tests.jpg",
+  exams: "assets/stat-exams.jpg"
+};
 
 const state = {
   route: "home",
@@ -640,10 +646,10 @@ function renderHome() {
         )}
 
         <div class="stats-grid">
-          ${statCard("clipboard", "Assignments", String(summary.assignments.length).padStart(2, "0"), `${summary.completedAssignments.length}/${summary.assignments.length} done`, "")}
-          ${statCard("alarm", "Due Soon", String(summary.urgentAssignments.length).padStart(2, "0"), "Assignments due in 3 days", "red")}
-          ${statCard("file", "Tests", String(summary.tests.length).padStart(2, "0"), "Total tests", "green")}
-          ${statCard("graduation", "Exams", String(summary.exams.length).padStart(2, "0"), "Total exams", "")}
+          ${statCard("assignments", "Assignments", String(summary.assignments.length).padStart(2, "0"), `${summary.completedAssignments.length}/${summary.assignments.length} done`, "")}
+          ${statCard("dueSoon", "Due Soon", String(summary.urgentAssignments.length).padStart(2, "0"), "Assignments due in 3 days", "red")}
+          ${statCard("tests", "Tests", String(summary.tests.length).padStart(2, "0"), "Total tests", "green")}
+          ${statCard("exams", "Exams", String(summary.exams.length).padStart(2, "0"), "Total exams", "")}
         </div>
 
         <section>
@@ -660,10 +666,13 @@ function renderHome() {
   `;
 }
 function statCard(iconName, kicker, number, label, tone) {
+  const imageSrc = STAT_ICON_IMAGES[iconName];
   return `
     <article class="stat-card">
       <div class="stat-top">
-        <span class="stat-icon ${tone}">${icon(iconName)}</span>
+        <span class="stat-icon ${tone}">
+          ${imageSrc ? `<img src="${imageSrc}" alt="" />` : icon(iconName)}
+        </span>
         <span class="stat-kicker">${kicker}</span>
       </div>
       <div>

@@ -1452,7 +1452,7 @@ a {
 }
 
 .form-grid.four {
-  grid-template-columns: 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
 }
 
 .schedule-grid {
@@ -1460,6 +1460,7 @@ a {
   border: 1px solid #f0dce6;
   border-radius: 20px;
   background: #fff9fc;
+  overflow: hidden;
 }
 
 .form-card {
@@ -1909,10 +1910,6 @@ svg {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .form-grid.four {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
   .home-layout,
   .tasks-layout,
   .rep-layout,
@@ -1933,10 +1930,6 @@ svg {
 @media (min-width: 1040px) {
   :root {
     --bottom-nav-height: 0px;
-  }
-
-  .form-grid.four {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
   .app-screen {

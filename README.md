@@ -157,13 +157,24 @@ using (
   exists (
     select 1
     from public.app_roles
-    where app_roles.email = (auth.jwt() ->> 'email')
+    where app_roles.email = lower(coalesce(((select auth.jwt()) ->> 'email'), ''))
       and app_roles.role = 'owner'
   )
   or dashboard_key = (
     select profiles.dashboard_key
     from public.profiles
-    where profiles.id = auth.uid()
+    where profiles.id = (select auth.uid())
+  )
+  or exists (
+    select 1
+    from public.app_roles
+    where app_roles.email = lower(coalesce(((select auth.jwt()) ->> 'email'), ''))
+      and app_roles.role = 'admin'
+      and dashboard_key = concat(
+        substring(lower(coalesce(((select auth.jwt()) ->> 'email'), '')) from '^([0-9]{4})'),
+        '-',
+        substring(lower(coalesce(((select auth.jwt()) ->> 'email'), '')) from '^[0-9]{4}([a-z]+)[0-9]+@std\.must\.ac\.ug$')
+      )
   )
 );
 
@@ -175,22 +186,20 @@ with check (
   exists (
     select 1
     from public.app_roles
-    where app_roles.email = (auth.jwt() ->> 'email')
-      and app_roles.role in ('admin', 'owner')
+    where app_roles.email = lower(coalesce(((select auth.jwt()) ->> 'email'), ''))
+      and app_roles.role = 'owner'
   )
-  and (
-    exists (
-      select 1
-      from public.app_roles
-      where app_roles.email = (auth.jwt() ->> 'email')
-        and app_roles.role = 'owner'
+  or exists (
+    select 1
+    from public.app_roles
+    where app_roles.email = lower(coalesce(((select auth.jwt()) ->> 'email'), ''))
+      and app_roles.role = 'admin'
+      and dashboard_key = concat(
+        substring(lower(coalesce(((select auth.jwt()) ->> 'email'), '')) from '^([0-9]{4})'),
+        '-',
+        substring(lower(coalesce(((select auth.jwt()) ->> 'email'), '')) from '^[0-9]{4}([a-z]+)[0-9]+@std\.must\.ac\.ug$')
+      )
     )
-    or dashboard_key = (
-      select profiles.dashboard_key
-      from public.profiles
-      where profiles.id = auth.uid()
-    )
-  )
 );
 
 create policy "Admins can update class items"
@@ -201,29 +210,38 @@ using (
   exists (
     select 1
     from public.app_roles
-    where app_roles.email = (auth.jwt() ->> 'email')
-      and app_roles.role in ('admin', 'owner')
+    where app_roles.email = lower(coalesce(((select auth.jwt()) ->> 'email'), ''))
+      and app_roles.role = 'owner'
   )
-  and (
-    exists (
-      select 1
-      from public.app_roles
-      where app_roles.email = (auth.jwt() ->> 'email')
-        and app_roles.role = 'owner'
+  or exists (
+    select 1
+    from public.app_roles
+    where app_roles.email = lower(coalesce(((select auth.jwt()) ->> 'email'), ''))
+      and app_roles.role = 'admin'
+      and dashboard_key = concat(
+        substring(lower(coalesce(((select auth.jwt()) ->> 'email'), '')) from '^([0-9]{4})'),
+        '-',
+        substring(lower(coalesce(((select auth.jwt()) ->> 'email'), '')) from '^[0-9]{4}([a-z]+)[0-9]+@std\.must\.ac\.ug$')
+      )
     )
-    or dashboard_key = (
-      select profiles.dashboard_key
-      from public.profiles
-      where profiles.id = auth.uid()
-    )
-  )
 )
 with check (
   exists (
     select 1
     from public.app_roles
-    where app_roles.email = (auth.jwt() ->> 'email')
-      and app_roles.role in ('admin', 'owner')
+    where app_roles.email = lower(coalesce(((select auth.jwt()) ->> 'email'), ''))
+      and app_roles.role = 'owner'
+  )
+  or exists (
+    select 1
+    from public.app_roles
+    where app_roles.email = lower(coalesce(((select auth.jwt()) ->> 'email'), ''))
+      and app_roles.role = 'admin'
+      and dashboard_key = concat(
+        substring(lower(coalesce(((select auth.jwt()) ->> 'email'), '')) from '^([0-9]{4})'),
+        '-',
+        substring(lower(coalesce(((select auth.jwt()) ->> 'email'), '')) from '^[0-9]{4}([a-z]+)[0-9]+@std\.must\.ac\.ug$')
+      )
   )
 );
 
@@ -235,22 +253,20 @@ using (
   exists (
     select 1
     from public.app_roles
-    where app_roles.email = (auth.jwt() ->> 'email')
-      and app_roles.role in ('admin', 'owner')
+    where app_roles.email = lower(coalesce(((select auth.jwt()) ->> 'email'), ''))
+      and app_roles.role = 'owner'
   )
-  and (
-    exists (
-      select 1
-      from public.app_roles
-      where app_roles.email = (auth.jwt() ->> 'email')
-        and app_roles.role = 'owner'
+  or exists (
+    select 1
+    from public.app_roles
+    where app_roles.email = lower(coalesce(((select auth.jwt()) ->> 'email'), ''))
+      and app_roles.role = 'admin'
+      and dashboard_key = concat(
+        substring(lower(coalesce(((select auth.jwt()) ->> 'email'), '')) from '^([0-9]{4})'),
+        '-',
+        substring(lower(coalesce(((select auth.jwt()) ->> 'email'), '')) from '^[0-9]{4}([a-z]+)[0-9]+@std\.must\.ac\.ug$')
+      )
     )
-    or dashboard_key = (
-      select profiles.dashboard_key
-      from public.profiles
-      where profiles.id = auth.uid()
-    )
-  )
 );
 
 create policy "Authenticated users can read role list"

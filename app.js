@@ -1035,7 +1035,6 @@ function taskCard(task) {
     <article class="task-card ${typeClass} ${done ? "is-done" : ""} ${overdue ? "is-overdue" : ""}">
       <div class="task-tags">
         <span class="badge ${badgeTone}">${done ? "Done" : task.type}</span>
-        <span class="meta-line">• ${task.course} (${task.code})</span>
         ${overdue ? `<span class="badge red">Overdue</span>` : ""}
         ${urgent ? `<span class="badge red">Due Soon</span>` : ""}
       </div>

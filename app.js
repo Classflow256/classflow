@@ -1131,23 +1131,27 @@ function postScheduleFields(task = {}) {
   const endDate = task.endDate || "";
   const endTime = task.endTime || "";
   return `
-    <div class="form-grid four schedule-grid">
-      <label class="form-control">
-        <span class="field-label">Start Date</span>
-        <input name="start_date" type="date" value="${escapeAttribute(startDate)}" required />
-      </label>
-      <label class="form-control">
-        <span class="field-label">Start Time</span>
-        <input name="start_time" type="time" value="${escapeAttribute(startTime)}" required />
-      </label>
-      <label class="form-control">
-        <span class="field-label">End / Due Date</span>
-        <input name="end_date" type="date" value="${escapeAttribute(endDate)}" required />
-      </label>
-      <label class="form-control">
-        <span class="field-label">End / Due Time</span>
-        <input name="end_time" type="time" value="${escapeAttribute(endTime)}" required />
-      </label>
+    <div class="schedule-grid">
+      <div class="schedule-column">
+        <label class="form-control">
+          <span class="field-label">Start Date</span>
+          <input name="start_date" type="date" value="${escapeAttribute(startDate)}" required />
+        </label>
+        <label class="form-control">
+          <span class="field-label">Start Time</span>
+          <input name="start_time" type="time" value="${escapeAttribute(startTime)}" required />
+        </label>
+      </div>
+      <div class="schedule-column">
+        <label class="form-control">
+          <span class="field-label">End / Due Date</span>
+          <input name="end_date" type="date" value="${escapeAttribute(endDate)}" required />
+        </label>
+        <label class="form-control">
+          <span class="field-label">End / Due Time</span>
+          <input name="end_time" type="time" value="${escapeAttribute(endTime)}" required />
+        </label>
+      </div>
     </div>
   `;
 }

@@ -93,6 +93,14 @@ const COURSE_DURATIONS = {
 };
 const CURRENT_COHORT_YEAR = 2025;
 const SUPPORTED_YEARS = ["2025", "2024", "2023", "2022", "2021"];
+const TIMETABLE_DAYS = [
+  { value: 1, label: "Monday" },
+  { value: 2, label: "Tuesday" },
+  { value: 3, label: "Wednesday" },
+  { value: 4, label: "Thursday" },
+  { value: 5, label: "Friday" },
+  { value: 6, label: "Saturday" }
+];
 const PRESIDENT_EMAILS = ["2025bit196@std.must.ac.ug"];
 const OWNER_EMAILS = ["owner@classflow256.com"];
 const STAT_ICON_IMAGES = {
@@ -116,6 +124,8 @@ const state = {
   search: "",
   tasks: [],
   posts: [],
+  timetableLabel: "Semester Timetable",
+  timetableEntries: [],
   completedTaskIds: new Set(),
   readNotificationIds: new Set(),
   ownerUserCount: null,
@@ -266,6 +276,10 @@ function dashboardLabelForKey(dashboardKey) {
 function activeDashboardKey() {
   if (state.isOwner) return state.ownerViewDashboardKey || "";
   return state.currentUser?.dashboardKey || "";
+}
+
+function timetableDashboardKey() {
+  return activeDashboardKey() || dashboardOptions()[0]?.key || "";
 }
 
 function courseForDashboardKey(dashboardKey) {
@@ -697,6 +711,39 @@ function taskFromRow(row) {
   };
 }
 
+function timetableEntryFromRow(row) {
+  return {
+    id: row.id,
+    dashboardKey: row.dashboard_key || "",
+    dayOfWeek: Number(row.day_of_week || 1),
+    startTime: row.start_time ? String(row.start_time).slice(0, 5) : "",
+    endTime: row.end_time ? String(row.end_time).slice(0, 5) : "",
+    title: row.title || "",
+    venue: row.venue || "",
+    lecturer: row.lecturer || ""
+  };
+}
+
+function timetablePayloadFromForm(form) {
+  return {
+    dashboard_key: String(form.get("dashboard_key") || timetableDashboardKey()).trim(),
+    day_of_week: Number(form.get("day_of_week") || 1),
+    start_time: String(form.get("start_time") || "").trim(),
+    end_time: String(form.get("end_time") || "").trim(),
+    title: String(form.get("title") || "").trim(),
+    venue: String(form.get("venue") || "").trim(),
+    lecturer: String(form.get("lecturer") || "").trim()
+  };
+}
+
+function validateTimetablePayload(payload) {
+  if (!payload.dashboard_key) return "Choose the dashboard for this timetable.";
+  if (!payload.title) return "Add the class or activity title.";
+  if (!payload.start_time || !payload.end_time) return "Set the start and end time.";
+  if (payload.end_time <= payload.start_time) return "End time must be after start time.";
+  return "";
+}
+
 function taskPayloadFromForm(form) {
   const type = form.get("type");
   const startDate = String(form.get("start_date") || localDateInputValue()).trim();
@@ -889,6 +936,53 @@ async function loadClassItems() {
   loadReadNotifications();
   await loadTaskCompletions();
   updateNotificationBadge();
+  render();
+}
+
+async function loadTimetable() {
+  const dashboardKey = timetableDashboardKey();
+  if (!dashboardKey) {
+    state.timetableLabel = "Semester Timetable";
+    state.timetableEntries = [];
+    render();
+    return;
+  }
+
+  if (!supabaseClient) {
+    state.timetableLabel = "Semester Timetable";
+    state.timetableEntries = [];
+    render();
+    return;
+  }
+
+  const { data: settings, error: settingsError } = await supabaseClient
+    .from("timetable_settings")
+    .select("semester_label")
+    .eq("dashboard_key", dashboardKey)
+    .maybeSingle();
+
+  if (settingsError) {
+    console.error(settingsError);
+    state.timetableLabel = "Semester Timetable";
+  } else {
+    state.timetableLabel = settings?.semester_label || "Semester Timetable";
+  }
+
+  const { data: entries, error: entriesError } = await supabaseClient
+    .from("timetable_entries")
+    .select("*")
+    .eq("dashboard_key", dashboardKey)
+    .order("day_of_week", { ascending: true })
+    .order("start_time", { ascending: true });
+
+  if (entriesError) {
+    console.error(entriesError);
+    state.timetableEntries = [];
+    toast("Timetable table is not ready yet.");
+  } else {
+    state.timetableEntries = entries?.map(timetableEntryFromRow) || [];
+  }
+
   render();
 }
 
@@ -1265,6 +1359,166 @@ function renderCalendar() {
     </div>
   `;
 }
+
+function renderTimetable() {
+  const dashboardKey = timetableDashboardKey();
+  const canEdit = state.isAdmin && Boolean(dashboardKey);
+  const selectedDashboardLabel = dashboardLabelForKey(dashboardKey) || dashboardLabel();
+  const dashboardSelect = dashboardOptions()
+    .map((dashboard) => `<option value="${dashboard.key}" ${dashboard.key === dashboardKey ? "selected" : ""}>${dashboard.label}</option>`)
+    .join("");
+  const entriesByDay = new Map(TIMETABLE_DAYS.map((day) => [day.value, []]));
+  state.timetableEntries.forEach((entry) => {
+    if (!entriesByDay.has(entry.dayOfWeek)) entriesByDay.set(entry.dayOfWeek, []);
+    entriesByDay.get(entry.dayOfWeek).push(entry);
+  });
+
+  return `
+    <div class="page-grid">
+      ${pageTitle("Timetable", selectedDashboardLabel)}
+      <section class="timetable-shell">
+        <div class="timetable-header">
+          <div>
+            <span class="card-kicker">Semester Label</span>
+            <h1>${state.timetableLabel}</h1>
+          </div>
+          ${canEdit ? `
+            <form id="timetableLabelForm" class="timetable-label-form">
+              <input name="semester_label" value="${escapeAttribute(state.timetableLabel)}" placeholder="e.g. Semester One 2026" required />
+              <button class="secondary-action" type="submit">Save Label</button>
+            </form>
+          ` : ""}
+        </div>
+
+        <div class="timetable-grid">
+          ${TIMETABLE_DAYS.map((day) => {
+            const entries = entriesByDay.get(day.value) || [];
+            return `
+              <section class="timetable-day">
+                <h2>${day.label}</h2>
+                <div class="timetable-slots">
+                  ${entries.length ? entries.map(timetableSlot).join("") : `<div class="timetable-empty">No classes scheduled</div>`}
+                </div>
+              </section>
+            `;
+          }).join("")}
+        </div>
+      </section>
+
+      ${canEdit ? `
+        <section class="content-card form-card">
+          <h2><span class="stat-icon">${icon("calendar")}</span> Add Timetable Item</h2>
+          <form id="timetableForm" class="form-grid">
+            ${state.isOwner ? `
+              <label class="form-control">
+                <span class="field-label">Dashboard</span>
+                <select name="dashboard_key" required>${dashboardSelect}</select>
+              </label>
+            ` : `<input type="hidden" name="dashboard_key" value="${escapeAttribute(dashboardKey)}" />`}
+            <div class="form-grid two">
+              <label class="form-control">
+                <span class="field-label">Day</span>
+                <select name="day_of_week" required>
+                  ${TIMETABLE_DAYS.map((day) => `<option value="${day.value}">${day.label}</option>`).join("")}
+                </select>
+              </label>
+              <label class="form-control">
+                <span class="field-label">Class / Activity</span>
+                <input name="title" placeholder="e.g. Data Structures" required />
+              </label>
+            </div>
+            <div class="form-grid two">
+              <label class="form-control">
+                <span class="field-label">Start Time</span>
+                <input name="start_time" type="time" required />
+              </label>
+              <label class="form-control">
+                <span class="field-label">End Time</span>
+                <input name="end_time" type="time" required />
+              </label>
+            </div>
+            <div class="form-grid two">
+              <label class="form-control">
+                <span class="field-label">Venue</span>
+                <input name="venue" placeholder="e.g. Room 402" />
+              </label>
+              <label class="form-control">
+                <span class="field-label">Lecturer</span>
+                <input name="lecturer" placeholder="e.g. Dr. Kato" />
+              </label>
+            </div>
+            <div class="form-actions single">
+              <button class="primary-action" type="submit">Add To Timetable</button>
+            </div>
+          </form>
+        </section>
+      ` : ""}
+    </div>
+  `;
+}
+
+function timetableSlot(entry) {
+  return `
+    <article class="timetable-slot">
+      <span class="timetable-time">${formatInputTime(entry.startTime)} - ${formatInputTime(entry.endTime)}</span>
+      <h3>${entry.title}</h3>
+      <p>${[entry.venue, entry.lecturer].filter(Boolean).join(" - ") || "Class session"}</p>
+      ${state.isAdmin ? `
+        <div class="task-buttons">
+          <button class="tiny-button secondary" type="button" data-edit-timetable="${entry.id}">Edit</button>
+          <button class="tiny-button danger" type="button" data-delete-timetable="${entry.id}">Delete</button>
+        </div>
+      ` : ""}
+    </article>
+  `;
+}
+
+function timetableEditModal(entry) {
+  return `
+    <h2 id="modalTitle">Edit Timetable Item</h2>
+    <form id="timetableEditForm" class="form-grid">
+      <input type="hidden" name="id" value="${escapeAttribute(entry.id)}" />
+      <input type="hidden" name="dashboard_key" value="${escapeAttribute(entry.dashboardKey)}" />
+      <div class="form-grid two">
+        <label class="form-control">
+          <span class="field-label">Day</span>
+          <select name="day_of_week" required>
+            ${TIMETABLE_DAYS.map((day) => `<option value="${day.value}" ${day.value === entry.dayOfWeek ? "selected" : ""}>${day.label}</option>`).join("")}
+          </select>
+        </label>
+        <label class="form-control">
+          <span class="field-label">Class / Activity</span>
+          <input name="title" value="${escapeAttribute(entry.title)}" required />
+        </label>
+      </div>
+      <div class="form-grid two">
+        <label class="form-control">
+          <span class="field-label">Start Time</span>
+          <input name="start_time" type="time" value="${escapeAttribute(entry.startTime)}" required />
+        </label>
+        <label class="form-control">
+          <span class="field-label">End Time</span>
+          <input name="end_time" type="time" value="${escapeAttribute(entry.endTime)}" required />
+        </label>
+      </div>
+      <div class="form-grid two">
+        <label class="form-control">
+          <span class="field-label">Venue</span>
+          <input name="venue" value="${escapeAttribute(entry.venue)}" />
+        </label>
+        <label class="form-control">
+          <span class="field-label">Lecturer</span>
+          <input name="lecturer" value="${escapeAttribute(entry.lecturer)}" />
+        </label>
+      </div>
+      <div class="form-actions">
+        <button class="secondary-action" type="button" data-close-modal>Cancel</button>
+        <button class="primary-action" type="submit">Save Changes</button>
+      </div>
+    </form>
+  `;
+}
+
 function agendaItem(task) {
   const type = calendarTypeClass(task.type);
   const done = isTaskDone(task);
@@ -1738,6 +1992,7 @@ function render() {
     home: renderHome,
     tasks: renderTasks,
     calendar: renderCalendar,
+    timetable: renderTimetable,
     reps: renderReps
   };
   viewStage.innerHTML = views[state.route]();
@@ -1840,6 +2095,7 @@ document.querySelector("#loginForm").addEventListener("submit", async (event) =>
   setUserRole(resolvedProfile);
   showDashboard();
   await loadClassItems();
+  await loadTimetable();
   await loadOwnerMetrics();
   toast(state.isOwner ? "Administrator access enabled." : state.isAdmin ? "Admin access enabled." : "Signed in to the Class Flow workspace.");
 });
@@ -1962,6 +2218,31 @@ document.addEventListener("click", async (event) => {
     return;
   }
 
+  const editTimetableButton = event.target.closest("[data-edit-timetable]");
+  if (editTimetableButton && state.isAdmin) {
+    const entry = state.timetableEntries.find((item) => String(item.id) === String(editTimetableButton.dataset.editTimetable));
+    if (entry) openModal(timetableEditModal(entry));
+    return;
+  }
+
+  const deleteTimetableButton = event.target.closest("[data-delete-timetable]");
+  if (deleteTimetableButton && state.isAdmin) {
+    const id = String(deleteTimetableButton.dataset.deleteTimetable);
+    if (!window.confirm("Delete this timetable item?")) return;
+    if (supabaseClient) {
+      const { error } = await supabaseClient.from("timetable_entries").delete().eq("id", id);
+      if (error) {
+        console.error(error);
+        toast(error.message);
+        return;
+      }
+    }
+    state.timetableEntries = state.timetableEntries.filter((entry) => String(entry.id) !== id);
+    render();
+    toast("Timetable item deleted.");
+    return;
+  }
+
   const doneButton = event.target.closest("[data-mark-done]");
   if (doneButton) {
     const task = state.tasks.find((item) => String(item.id) === String(doneButton.dataset.markDone));
@@ -2004,6 +2285,7 @@ document.addEventListener("click", async (event) => {
     state.ownerViewDashboardKey = "";
     routeTo("home");
     await loadClassItems();
+    await loadTimetable();
     toast("Showing all administrator dashboards.");
     return;
   }
@@ -2020,6 +2302,8 @@ document.addEventListener("click", async (event) => {
     state.isAdmin = false;
     state.isOwner = false;
     state.tasks = [];
+    state.timetableLabel = "Semester Timetable";
+    state.timetableEntries = [];
     state.completedTaskIds = new Set();
     state.readNotificationIds = new Set();
     state.ownerUserCount = null;
@@ -2044,6 +2328,14 @@ document.addEventListener("change", async (event) => {
   if (event.target.matches("[data-calendar-year]")) {
     setCalendarMonth(Number(event.target.value), state.calendarDate.getMonth());
     render();
+    return;
+  }
+
+  if (event.target.matches("#timetableForm select[name='dashboard_key']")) {
+    const dashboardKey = event.target.value;
+    if (state.isOwner) state.ownerViewDashboardKey = dashboardKey;
+    await loadClassItems();
+    await loadTimetable();
     return;
   }
 
@@ -2078,7 +2370,122 @@ document.addEventListener("submit", async (event) => {
     state.ownerViewDashboardKey = dashboardKeyFromParts(year, courseCode);
     routeTo("home");
     await loadClassItems();
+    await loadTimetable();
     toast(`Viewing ${dashboardLabelForKey(state.ownerViewDashboardKey)}.`);
+    return;
+  }
+
+  if (event.target.id === "timetableLabelForm") {
+    event.preventDefault();
+    if (!state.isAdmin) {
+      toast("Only the administrator or class president can edit the timetable.");
+      return;
+    }
+
+    const dashboardKey = timetableDashboardKey();
+    const semesterLabel = String(new FormData(event.target).get("semester_label") || "").trim();
+    if (!dashboardKey || !semesterLabel) {
+      toast("Add a semester label.");
+      return;
+    }
+
+    if (supabaseClient) {
+      const { error } = await supabaseClient
+        .from("timetable_settings")
+        .upsert({ dashboard_key: dashboardKey, semester_label: semesterLabel }, { onConflict: "dashboard_key" });
+
+      if (error) {
+        console.error(error);
+        toast(error.message);
+        return;
+      }
+    }
+
+    state.timetableLabel = semesterLabel;
+    render();
+    toast("Timetable label updated.");
+    return;
+  }
+
+  if (event.target.id === "timetableForm") {
+    event.preventDefault();
+    if (!state.isAdmin) {
+      toast("Only the administrator or class president can edit the timetable.");
+      return;
+    }
+
+    const payload = timetablePayloadFromForm(new FormData(event.target));
+    const validationMessage = validateTimetablePayload(payload);
+    if (validationMessage) {
+      toast(validationMessage);
+      return;
+    }
+
+    let entry = timetableEntryFromRow({ id: Date.now(), ...payload });
+    if (supabaseClient) {
+      const { data, error } = await supabaseClient
+        .from("timetable_entries")
+        .insert(payload)
+        .select()
+        .single();
+
+      if (error) {
+        console.error(error);
+        toast(error.message);
+        return;
+      }
+      entry = timetableEntryFromRow(data);
+    }
+
+    if (payload.dashboard_key === timetableDashboardKey()) {
+      state.timetableEntries.push(entry);
+      state.timetableEntries.sort((a, b) => a.dayOfWeek - b.dayOfWeek || a.startTime.localeCompare(b.startTime));
+    }
+    event.target.reset();
+    render();
+    toast("Timetable item added.");
+    return;
+  }
+
+  if (event.target.id === "timetableEditForm") {
+    event.preventDefault();
+    if (!state.isAdmin) {
+      toast("Only the administrator or class president can edit the timetable.");
+      return;
+    }
+
+    const form = new FormData(event.target);
+    const id = String(form.get("id") || "");
+    const payload = timetablePayloadFromForm(form);
+    const validationMessage = validateTimetablePayload(payload);
+    if (validationMessage) {
+      toast(validationMessage);
+      return;
+    }
+
+    let updatedEntry = timetableEntryFromRow({ id, ...payload });
+    if (supabaseClient) {
+      const { data, error } = await supabaseClient
+        .from("timetable_entries")
+        .update(payload)
+        .eq("id", id)
+        .select()
+        .single();
+
+      if (error) {
+        console.error(error);
+        toast(error.message);
+        return;
+      }
+      updatedEntry = timetableEntryFromRow(data);
+    }
+
+    state.timetableEntries = state.timetableEntries
+      .map((entry) => String(entry.id) === id ? updatedEntry : entry)
+      .sort((a, b) => a.dayOfWeek - b.dayOfWeek || a.startTime.localeCompare(b.startTime));
+    closeModal();
+    render();
+    toast("Timetable item updated.");
     return;
   }
 

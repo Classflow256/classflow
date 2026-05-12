@@ -495,7 +495,7 @@ a {
   inset: auto 0 0 0;
   height: var(--bottom-nav-height);
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   background: rgba(255, 250, 253, 0.94);
   border-top: 1px solid var(--line);
   backdrop-filter: blur(16px);
@@ -1460,6 +1460,123 @@ a {
   gap: 18px;
 }
 
+.timetable-shell {
+  border: 1px solid var(--line);
+  border-radius: 26px;
+  background: #fffdfd;
+  box-shadow: 0 22px 44px rgba(70, 11, 42, 0.08);
+  overflow: hidden;
+}
+
+.timetable-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 18px;
+  padding: 22px;
+  border-bottom: 1px solid #f2e5ec;
+  background: #fff8fb;
+}
+
+.timetable-header h1 {
+  margin: 6px 0 0;
+  font-size: clamp(26px, 4vw, 42px);
+  letter-spacing: 0;
+}
+
+.timetable-label-form {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) auto;
+  gap: 10px;
+  width: min(100%, 520px);
+}
+
+.timetable-label-form input {
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: #fff;
+  padding: 12px 14px;
+  color: var(--ink);
+}
+
+.timetable-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(150px, 1fr));
+  overflow-x: auto;
+}
+
+.timetable-day {
+  min-width: 150px;
+  border-right: 1px solid #f2e5ec;
+  background: #fff;
+}
+
+.timetable-day:last-child {
+  border-right: 0;
+}
+
+.timetable-day h2 {
+  margin: 0;
+  padding: 14px 16px;
+  border-bottom: 1px solid #f2e5ec;
+  background: #fff8fb;
+  color: #6d1640;
+  font-size: 13px;
+  font-weight: 850;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.timetable-slots {
+  display: grid;
+  gap: 10px;
+  min-height: 360px;
+  padding: 12px;
+  align-content: start;
+}
+
+.timetable-slot {
+  position: relative;
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+  border: 1px solid #efd5e1;
+  border-left: 4px solid var(--brand);
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 12px 24px rgba(70, 11, 42, 0.06);
+}
+
+.timetable-time {
+  color: var(--brand);
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.timetable-slot h3 {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.25;
+}
+
+.timetable-slot p,
+.timetable-empty {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.timetable-empty {
+  display: grid;
+  place-items: center;
+  min-height: 86px;
+  border: 1px dashed #ead4df;
+  border-radius: 16px;
+  background: #fffafd;
+  text-align: center;
+}
+
 .muted-text {
   margin: 0;
   color: var(--muted);
@@ -1926,6 +2043,15 @@ svg {
 
 @media (max-width: 620px) {
   .schedule-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .timetable-header {
+    display: grid;
+    align-items: stretch;
+  }
+
+  .timetable-label-form {
     grid-template-columns: 1fr;
   }
 

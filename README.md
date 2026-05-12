@@ -130,6 +130,24 @@ create table if not exists public.task_completions (
   primary key (user_id, item_id)
 );
 
+create table if not exists public.timetable_settings (
+  dashboard_key text primary key,
+  semester_label text not null default 'Semester Timetable',
+  updated_at timestamptz default now()
+);
+
+create table if not exists public.timetable_entries (
+  id uuid primary key default gen_random_uuid(),
+  dashboard_key text not null,
+  day_of_week integer not null check (day_of_week between 1 and 7),
+  start_time time not null,
+  end_time time not null,
+  title text not null,
+  venue text,
+  lecturer text,
+  created_at timestamptz default now()
+);
+
 insert into storage.buckets (id, name, public)
 values ('avatars', 'avatars', true)
 on conflict (id) do update set public = true;
@@ -138,12 +156,16 @@ alter table public.class_items enable row level security;
 alter table public.app_roles enable row level security;
 alter table public.profiles enable row level security;
 alter table public.task_completions enable row level security;
+alter table public.timetable_settings enable row level security;
+alter table public.timetable_entries enable row level security;
 
 grant select on table public.class_items to authenticated;
 grant insert, update, delete on table public.class_items to authenticated;
 grant select, insert, update on table public.app_roles to authenticated;
 grant select, insert, update on table public.profiles to authenticated;
 grant select, insert, update, delete on table public.task_completions to authenticated;
+grant select, insert, update, delete on table public.timetable_settings to authenticated;
+grant select, insert, update, delete on table public.timetable_entries to authenticated;
 
 insert into public.app_roles (email, role)
 values
@@ -167,6 +189,13 @@ drop policy if exists "Users can update their own profile" on public.profiles;
 drop policy if exists "Users can read their completed tasks" on public.task_completions;
 drop policy if exists "Users can mark their own tasks done" on public.task_completions;
 drop policy if exists "Users can update their completed tasks" on public.task_completions;
+drop policy if exists "Users can read timetable settings" on public.timetable_settings;
+drop policy if exists "Admins can add timetable settings" on public.timetable_settings;
+drop policy if exists "Admins can update timetable settings" on public.timetable_settings;
+drop policy if exists "Users can read timetable entries" on public.timetable_entries;
+drop policy if exists "Admins can add timetable entries" on public.timetable_entries;
+drop policy if exists "Admins can update timetable entries" on public.timetable_entries;
+drop policy if exists "Admins can delete timetable entries" on public.timetable_entries;
 drop policy if exists "Anyone can read profile photos" on storage.objects;
 drop policy if exists "Users can read their own profile photo" on storage.objects;
 drop policy if exists "Users can upload their own profile photo" on storage.objects;
@@ -382,6 +411,170 @@ for update
 to authenticated
 using (auth.uid() = user_id)
 with check (auth.uid() = user_id);
+
+create policy "Users can read timetable settings"
+on public.timetable_settings
+for select
+to authenticated
+using (
+  exists (
+    select 1 from public.app_roles
+    where app_roles.email = lower(coalesce(((select auth.jwt()) ->> 'email'), ''))
+      and app_roles.role = 'owner'
+  )
+  or dashboard_key = (
+    select profiles.dashboard_key from public.profiles
+    where profiles.id = (select auth.uid())
+  )
+  or exists (
+    select 1 from public.app_roles
+    where app_roles.email = lower(coalesce(((select auth.jwt()) ->> 'email'), ''))
+      and app_roles.role = 'admin'
+      and dashboard_key = concat(
+        substring(lower(coalesce(((select auth.jwt()) ->> 'email'), '')) from '^([0-9]{4})'),
+        '-',
+        substring(lower(coalesce(((select auth.jwt()) ->> 'email'), '')) from '^[0-9]{4}([a-z]+)[0-9]+@std\.must\.ac\.ug$')
+      )
+  )
+);
+
+create policy "Admins can add timetable settings"
+on public.timetable_settings
+for insert
+to authenticated
+with check (
+  exists (
+    select 1 from public.app_roles
+    where app_roles.email = lower(coalesce(((select auth.jwt()) ->> 'email'), ''))
+      and app_roles.role = 'owner'
+  )
+  or exists (
+    select 1 from public.app_roles
+    where app_roles.email = lower(coalesce(((select auth.jwt()) ->> 'email'), ''))
+      and app_roles.role = 'admin'
+      and dashboard_key = concat(
+        substring(lower(coalesce(((select auth.jwt()) ->> 'email'), '')) from '^([0-9]{4})'),
+        '-',
+        substring(lower(coalesce(((select auth.jwt()) ->> 'email'), '')) from '^[0-9]{4}([a-z]+)[0-9]+@std\.must\.ac\.ug$')
+      )
+  )
+);
+
+create policy "Admins can update timetable settings"
+on public.timetable_settings
+for update
+to authenticated
+using (true)
+with check (
+  exists (
+    select 1 from public.app_roles
+    where app_roles.email = lower(coalesce(((select auth.jwt()) ->> 'email'), ''))
+      and app_roles.role = 'owner'
+  )
+  or exists (
+    select 1 from public.app_roles
+    where app_roles.email = lower(coalesce(((select auth.jwt()) ->> 'email'), ''))
+      and app_roles.role = 'admin'
+      and dashboard_key = concat(
+        substring(lower(coalesce(((select auth.jwt()) ->> 'email'), '')) from '^([0-9]{4})'),
+        '-',
+        substring(lower(coalesce(((select auth.jwt()) ->> 'email'), '')) from '^[0-9]{4}([a-z]+)[0-9]+@std\.must\.ac\.ug$')
+      )
+  )
+);
+
+create policy "Users can read timetable entries"
+on public.timetable_entries
+for select
+to authenticated
+using (
+  exists (
+    select 1 from public.app_roles
+    where app_roles.email = lower(coalesce(((select auth.jwt()) ->> 'email'), ''))
+      and app_roles.role = 'owner'
+  )
+  or dashboard_key = (
+    select profiles.dashboard_key from public.profiles
+    where profiles.id = (select auth.uid())
+  )
+  or exists (
+    select 1 from public.app_roles
+    where app_roles.email = lower(coalesce(((select auth.jwt()) ->> 'email'), ''))
+      and app_roles.role = 'admin'
+      and dashboard_key = concat(
+        substring(lower(coalesce(((select auth.jwt()) ->> 'email'), '')) from '^([0-9]{4})'),
+        '-',
+        substring(lower(coalesce(((select auth.jwt()) ->> 'email'), '')) from '^[0-9]{4}([a-z]+)[0-9]+@std\.must\.ac\.ug$')
+      )
+  )
+);
+
+create policy "Admins can add timetable entries"
+on public.timetable_entries
+for insert
+to authenticated
+with check (
+  exists (
+    select 1 from public.app_roles
+    where app_roles.email = lower(coalesce(((select auth.jwt()) ->> 'email'), ''))
+      and app_roles.role = 'owner'
+  )
+  or exists (
+    select 1 from public.app_roles
+    where app_roles.email = lower(coalesce(((select auth.jwt()) ->> 'email'), ''))
+      and app_roles.role = 'admin'
+      and dashboard_key = concat(
+        substring(lower(coalesce(((select auth.jwt()) ->> 'email'), '')) from '^([0-9]{4})'),
+        '-',
+        substring(lower(coalesce(((select auth.jwt()) ->> 'email'), '')) from '^[0-9]{4}([a-z]+)[0-9]+@std\.must\.ac\.ug$')
+      )
+  )
+);
+
+create policy "Admins can update timetable entries"
+on public.timetable_entries
+for update
+to authenticated
+using (true)
+with check (
+  exists (
+    select 1 from public.app_roles
+    where app_roles.email = lower(coalesce(((select auth.jwt()) ->> 'email'), ''))
+      and app_roles.role = 'owner'
+  )
+  or exists (
+    select 1 from public.app_roles
+    where app_roles.email = lower(coalesce(((select auth.jwt()) ->> 'email'), ''))
+      and app_roles.role = 'admin'
+      and dashboard_key = concat(
+        substring(lower(coalesce(((select auth.jwt()) ->> 'email'), '')) from '^([0-9]{4})'),
+        '-',
+        substring(lower(coalesce(((select auth.jwt()) ->> 'email'), '')) from '^[0-9]{4}([a-z]+)[0-9]+@std\.must\.ac\.ug$')
+      )
+  )
+);
+
+create policy "Admins can delete timetable entries"
+on public.timetable_entries
+for delete
+to authenticated
+using (
+  exists (
+    select 1 from public.app_roles
+    where app_roles.email = lower(coalesce(((select auth.jwt()) ->> 'email'), ''))
+      and app_roles.role = 'owner'
+  )
+  or exists (
+    select 1 from public.app_roles
+    where app_roles.email = lower(coalesce(((select auth.jwt()) ->> 'email'), ''))
+      and app_roles.role = 'admin'
+      and dashboard_key = concat(
+        substring(lower(coalesce(((select auth.jwt()) ->> 'email'), '')) from '^([0-9]{4})'),
+        '-',
+        substring(lower(coalesce(((select auth.jwt()) ->> 'email'), '')) from '^[0-9]{4}([a-z]+)[0-9]+@std\.must\.ac\.ug$')
+      )
+  )
+);
 
 create policy "Users can read their own profile photo"
 on storage.objects

@@ -699,8 +699,8 @@ a {
   margin: 14px 0 12px;
 }
 
-/* ── Home two-column split ─────────────────────────────── */
-.home-work-grid {
+/* Task page split */
+.task-split-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 20px;
@@ -781,7 +781,7 @@ a {
 }
 
 @media (max-width: 860px) {
-  .home-work-grid {
+  .task-split-grid {
     grid-template-columns: 1fr;
   }
 }
@@ -1029,6 +1029,10 @@ a {
 
 .task-card.announcement::before {
   background: var(--green);
+}
+
+.task-card.is-overdue::before {
+  background: var(--red);
 }
 
 .task-card.deadline::before {

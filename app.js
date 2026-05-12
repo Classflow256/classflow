@@ -885,8 +885,7 @@ function pageTitle(title, copy, action = "") {
 
 function renderHome() {
   const summary = stats();
-  const activeTasks = state.tasks.filter((task) => !isTaskDone(task) && !isOverdue(task));
-  const doneAndOverdueTasks = state.tasks.filter((task) => isTaskDone(task) || isOverdue(task));
+  const recentTasks = state.tasks.slice(0, 4);
   return `
     <div class="page-grid">
       <section class="page-grid">
@@ -902,42 +901,20 @@ function renderHome() {
           ${statCard("exams", "Exams", String(summary.exams.length).padStart(2, "0"), "Total exams", "")}
         </div>
 
-        <section class="home-work-grid">
-
-          <!-- LEFT: Priority & Upcoming -->
-          <div class="work-column">
-            <div class="work-column-header">
-              <h2 class="section-title"><span style="color:var(--red)">●</span> Priority &amp; Upcoming</h2>
-              <div style="display:flex;align-items:center;gap:10px">
-                <span class="work-column-count">${activeTasks.length} items</span>
-                <button class="link-button" data-route="tasks">View All</button>
-              </div>
-            </div>
-            <div class="work-column-body">
-              <div class="announcement-list">
-                ${activeTasks.length ? activeTasks.map(taskCard).join("") : emptyCard("No active class items right now.")}
-              </div>
-            </div>
+        <section>
+          <div class="section-head">
+            <h2 class="section-title">Recents</h2>
+            <button class="link-button" data-route="tasks">View All</button>
           </div>
-
-          <!-- RIGHT: Done & Overdue -->
-          <div class="work-column done-col">
-            <div class="work-column-header done-header">
-              <h2 class="section-title"><span style="color:var(--green)">●</span> Done &amp; Overdue</h2>
-              <span class="work-column-count">${doneAndOverdueTasks.length} items</span>
-            </div>
-            <div class="work-column-body">
-              <div class="announcement-list">
-                ${doneAndOverdueTasks.length ? doneAndOverdueTasks.map(taskCard).join("") : emptyCard("No completed or overdue items yet.")}
-              </div>
-            </div>
+          <div class="announcement-list">
+            ${recentTasks.length ? recentTasks.map(taskCard).join("") : emptyCard("No recent class items have been posted yet.")}
           </div>
-
         </section>
       </section>
     </div>
   `;
 }
+
 function statCard(iconName, kicker, number, label, tone) {
   const imageSrc = STAT_ICON_IMAGES[iconName];
   return `
@@ -985,6 +962,8 @@ function deadlineRow(task) {
 function renderTasks() {
   const filters = ["All Tasks", "Assignments", "Tests", "Exams", "Announcements"];
   const filtered = visibleTasks();
+  const activeTasks = filtered.filter((task) => !isTaskDone(task) && !isOverdue(task));
+  const doneAndOverdueTasks = filtered.filter((task) => isTaskDone(task) || isOverdue(task));
   const summary = stats();
   const progress = summary.assignments.length ? Math.round((summary.completedAssignments.length / summary.assignments.length) * 100) : 0;
 
@@ -1003,12 +982,29 @@ function renderTasks() {
           </div>
         </div>
 
-        <section>
-          <div class="section-head">
-            <h2 class="section-title"><span style="color: var(--red)">•</span> Priority & Upcoming</h2>
+        <section class="task-split-grid">
+          <div class="work-column">
+            <div class="work-column-header">
+              <h2 class="section-title">Priority & Upcoming</h2>
+              <span class="work-column-count">${activeTasks.length} items</span>
+            </div>
+            <div class="work-column-body">
+              <div class="announcement-list">
+                ${activeTasks.length ? activeTasks.map(taskCard).join("") : emptyCard("No active tasks match your search.")}
+              </div>
+            </div>
           </div>
-          <div class="announcement-list">
-            ${filtered.length ? filtered.map(taskCard).join("") : emptyCard("No tasks match your search.")}
+
+          <div class="work-column done-col">
+            <div class="work-column-header done-header">
+              <h2 class="section-title">Done & Overdue</h2>
+              <span class="work-column-count">${doneAndOverdueTasks.length} items</span>
+            </div>
+            <div class="work-column-body">
+              <div class="announcement-list">
+                ${doneAndOverdueTasks.length ? doneAndOverdueTasks.map(taskCard).join("") : emptyCard("No completed or overdue tasks match your search.")}
+              </div>
+            </div>
           </div>
         </section>
       </section>

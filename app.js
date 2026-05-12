@@ -903,25 +903,36 @@ function renderHome() {
         </div>
 
         <section class="home-work-grid">
+
+          <!-- LEFT: Priority & Upcoming -->
           <div class="work-column">
-            <div class="section-head">
-              <h2 class="section-title">Priority & Upcoming</h2>
-              <button class="link-button" data-route="tasks">View All</button>
+            <div class="work-column-header">
+              <h2 class="section-title"><span style="color:var(--red)">●</span> Priority &amp; Upcoming</h2>
+              <div style="display:flex;align-items:center;gap:10px">
+                <span class="work-column-count">${activeTasks.length} items</span>
+                <button class="link-button" data-route="tasks">View All</button>
+              </div>
             </div>
-            <div class="announcement-list">
-              ${activeTasks.length ? activeTasks.map(taskCard).join("") : emptyCard("No active class items right now.")}
+            <div class="work-column-body">
+              <div class="announcement-list">
+                ${activeTasks.length ? activeTasks.map(taskCard).join("") : emptyCard("No active class items right now.")}
+              </div>
             </div>
           </div>
 
-          <div class="work-column">
-            <div class="section-head">
-              <h2 class="section-title">Done & Overdue</h2>
-              <span class="meta-line">${doneAndOverdueTasks.length} items</span>
+          <!-- RIGHT: Done & Overdue -->
+          <div class="work-column done-col">
+            <div class="work-column-header done-header">
+              <h2 class="section-title"><span style="color:var(--green)">●</span> Done &amp; Overdue</h2>
+              <span class="work-column-count">${doneAndOverdueTasks.length} items</span>
             </div>
-            <div class="announcement-list">
-              ${doneAndOverdueTasks.length ? doneAndOverdueTasks.map(taskCard).join("") : emptyCard("No completed or overdue items yet.")}
+            <div class="work-column-body">
+              <div class="announcement-list">
+                ${doneAndOverdueTasks.length ? doneAndOverdueTasks.map(taskCard).join("") : emptyCard("No completed or overdue items yet.")}
+              </div>
             </div>
           </div>
+
         </section>
       </section>
     </div>

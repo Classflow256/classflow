@@ -618,6 +618,12 @@ function isDueWithinDays(task, days) {
   return dueDay >= today && dueDay <= limit;
 }
 
+function isOverdue(task) {
+  const endDate = taskEndDate(task);
+  if (!endDate) return false;
+  return startOfDay(endDate) < startOfDay(new Date());
+}
+
 function isTaskDone(task) {
   return state.completedTaskIds.has(String(task.id));
 }
@@ -879,6 +885,8 @@ function pageTitle(title, copy, action = "") {
 
 function renderHome() {
   const summary = stats();
+  const activeTasks = state.tasks.filter((task) => !isTaskDone(task) && !isOverdue(task));
+  const doneAndOverdueTasks = state.tasks.filter((task) => isTaskDone(task) || isOverdue(task));
   return `
     <div class="page-grid">
       <section class="page-grid">
@@ -894,13 +902,25 @@ function renderHome() {
           ${statCard("exams", "Exams", String(summary.exams.length).padStart(2, "0"), "Total exams", "")}
         </div>
 
-        <section>
-          <div class="section-head">
-            <h2 class="section-title">Priority & Upcoming</h2>
-            <button class="link-button" data-route="tasks">View All</button>
+        <section class="home-work-grid">
+          <div class="work-column">
+            <div class="section-head">
+              <h2 class="section-title">Priority & Upcoming</h2>
+              <button class="link-button" data-route="tasks">View All</button>
+            </div>
+            <div class="announcement-list">
+              ${activeTasks.length ? activeTasks.map(taskCard).join("") : emptyCard("No active class items right now.")}
+            </div>
           </div>
-          <div class="announcement-list">
-            ${state.tasks.length ? state.tasks.map(taskCard).join("") : emptyCard("No class items have been posted yet.")}
+
+          <div class="work-column">
+            <div class="section-head">
+              <h2 class="section-title">Done & Overdue</h2>
+              <span class="meta-line">${doneAndOverdueTasks.length} items</span>
+            </div>
+            <div class="announcement-list">
+              ${doneAndOverdueTasks.length ? doneAndOverdueTasks.map(taskCard).join("") : emptyCard("No completed or overdue items yet.")}
+            </div>
           </div>
         </section>
       </section>
@@ -999,15 +1019,17 @@ function renderTasks() {
 function taskCard(task) {
   const typeClass = task.type.toLowerCase();
   const done = isTaskDone(task);
+  const overdue = !done && isOverdue(task);
   const urgent = task.type === "Assignment" && !done && isDueWithinDays(task, 3);
-  const badgeTone = done || task.priority === "normal" ? "green" : urgent || task.priority === "urgent" ? "red" : "";
+  const badgeTone = done || task.priority === "normal" ? "green" : overdue || urgent || task.priority === "urgent" ? "red" : "";
   const resource = task.resourceLink || "";
   const resourceIsUrl = /^https?:\/\//i.test(resource);
   return `
-    <article class="task-card ${typeClass} ${done ? "is-done" : ""}">
+    <article class="task-card ${typeClass} ${done ? "is-done" : ""} ${overdue ? "is-overdue" : ""}">
       <div class="task-tags">
         <span class="badge ${badgeTone}">${done ? "Done" : task.type}</span>
         <span class="meta-line">• ${task.course} (${task.code})</span>
+        ${overdue ? `<span class="badge red">Overdue</span>` : ""}
         ${urgent ? `<span class="badge red">Due Soon</span>` : ""}
       </div>
       <h3>${task.title}</h3>

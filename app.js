@@ -652,6 +652,29 @@ function taskPayloadFromForm(form) {
   };
 }
 
+function validateTaskPayload(payload) {
+  const startDateTime = dateTimeFromParts(payload.start_date, payload.start_time);
+  const endDateTime = dateTimeFromParts(payload.end_date, payload.end_time);
+  if (!endDateTime) return "Set the end or due date and time.";
+  if (startDateTime && endDateTime < startDateTime) return "End time must be after the start time.";
+  return "";
+}
+
+function escapeAttribute(value = "") {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function escapeTextarea(value = "") {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
 function completionStorageKey() {
   return `classflow:completed:${state.currentUser?.email || "guest"}`;
 }
@@ -708,6 +731,29 @@ async function markTaskDone(taskId) {
   toast(error
     ? "Marked done here. Run the README SQL so it saves online."
     : "Assignment marked as done.");
+}
+
+function updateTaskInState(updatedTask) {
+  state.tasks = state.tasks.map((task) =>
+    String(task.id) === String(updatedTask.id) ? updatedTask : task
+  );
+  state.posts = state.posts.map((post) =>
+    String(post.id) === String(updatedTask.id)
+      ? {
+          ...post,
+          type: updatedTask.type,
+          title: updatedTask.title,
+          description: updatedTask.description,
+          due: updatedTask.due,
+          time: updatedTask.time,
+          startDate: updatedTask.startDate,
+          startTime: updatedTask.startTime,
+          endDate: updatedTask.endDate,
+          endTime: updatedTask.endTime,
+          priority: updatedTask.priority
+        }
+      : post
+  );
 }
 
 async function loadClassItems() {
@@ -1078,25 +1124,29 @@ function agendaItem(task) {
   `;
 }
 
-function postScheduleFields() {
+function postScheduleFields(task = {}) {
   const now = new Date();
+  const startDate = task.startDate || localDateInputValue(now);
+  const startTime = task.startTime || localTimeInputValue(now);
+  const endDate = task.endDate || "";
+  const endTime = task.endTime || "";
   return `
     <div class="form-grid four schedule-grid">
       <label class="form-control">
         <span class="field-label">Start Date</span>
-        <input name="start_date" type="date" value="${localDateInputValue(now)}" required />
+        <input name="start_date" type="date" value="${escapeAttribute(startDate)}" required />
       </label>
       <label class="form-control">
         <span class="field-label">Start Time</span>
-        <input name="start_time" type="time" value="${localTimeInputValue(now)}" required />
+        <input name="start_time" type="time" value="${escapeAttribute(startTime)}" required />
       </label>
       <label class="form-control">
         <span class="field-label">End / Due Date</span>
-        <input name="end_date" type="date" required />
+        <input name="end_date" type="date" value="${escapeAttribute(endDate)}" required />
       </label>
       <label class="form-control">
         <span class="field-label">End / Due Time</span>
-        <input name="end_time" type="time" required />
+        <input name="end_time" type="time" value="${escapeAttribute(endTime)}" required />
       </label>
     </div>
   `;
@@ -1264,6 +1314,45 @@ function postCard(post) {
   `;
 }
 
+function typeOptions(selectedType) {
+  return ["Announcement", "Assignment", "Test", "Exam"]
+    .map((type) => `<option ${type === selectedType ? "selected" : ""}>${type}</option>`)
+    .join("");
+}
+
+function taskEditForm(task) {
+  return `
+    <section class="edit-panel">
+      <h3>Edit Post</h3>
+      <form id="editTaskForm" class="form-grid">
+        <input type="hidden" name="id" value="${escapeAttribute(task.id)}" />
+        <input type="hidden" name="dashboard_key" value="${escapeAttribute(task.dashboardKey || state.currentUser?.dashboardKey || "")}" />
+        <label class="form-control">
+          <span class="field-label">Update Title</span>
+          <input name="title" value="${escapeAttribute(task.title)}" required />
+        </label>
+        <label class="form-control">
+          <span class="field-label">Type</span>
+          <select name="type">${typeOptions(task.type)}</select>
+        </label>
+        ${postScheduleFields(task)}
+        <label class="form-control">
+          <span class="field-label">Description</span>
+          <textarea name="description" required>${escapeTextarea(task.description)}</textarea>
+        </label>
+        <label class="form-control">
+          <span class="field-label">Link or Place</span>
+          <input name="resource_link" value="${escapeAttribute(task.resourceLink)}" placeholder="Paste a link, room, platform, or where to submit" />
+        </label>
+        <div class="form-actions">
+          <button class="secondary-action" type="button" data-close-modal>Cancel</button>
+          <button class="primary-action" type="submit">Save Changes</button>
+        </div>
+      </form>
+    </section>
+  `;
+}
+
 function emptyCard(message) {
   return `<article class="content-card announcement"><p>${message}</p></article>`;
 }
@@ -1288,6 +1377,7 @@ function taskDetailModal(task) {
         <span class="badge ${task.priority === "urgent" ? "red" : ""}">${task.due}</span>
         <span class="task-meta">${icon("clock")} ${scheduleRange(task)}</span>
       </div>
+      ${state.isAdmin ? taskEditForm(task) : ""}
     </div>
   `;
 }
@@ -1627,6 +1717,13 @@ document.addEventListener("click", async (event) => {
     return;
   }
 
+  const editButton = event.target.closest("[data-edit-post]");
+  if (editButton && state.isAdmin) {
+    const task = state.tasks.find((item) => String(item.id) === String(editButton.dataset.editPost));
+    if (task) openModal(taskDetailModal(task));
+    return;
+  }
+
   const doneButton = event.target.closest("[data-mark-done]");
   if (doneButton) {
     await markTaskDone(doneButton.dataset.markDone);
@@ -1709,6 +1806,47 @@ document.addEventListener("input", (event) => {
 });
 
 document.addEventListener("submit", async (event) => {
+  if (event.target.id === "editTaskForm") {
+    event.preventDefault();
+    if (!state.isAdmin) {
+      toast("Only class presidents and owners can edit posts.");
+      return;
+    }
+
+    const form = new FormData(event.target);
+    const id = String(form.get("id") || "");
+    const payload = taskPayloadFromForm(form);
+    const validationMessage = validateTaskPayload(payload);
+    if (validationMessage) {
+      toast(validationMessage);
+      return;
+    }
+
+    let updatedTask = taskFromRow({ id, ...payload });
+    if (supabaseClient) {
+      const { data, error } = await supabaseClient
+        .from("class_items")
+        .update(payload)
+        .eq("id", id)
+        .select()
+        .single();
+
+      if (error) {
+        console.error(error);
+        toast(error.message);
+        return;
+      }
+
+      updatedTask = taskFromRow(data);
+    }
+
+    updateTaskInState(updatedTask);
+    render();
+    closeModal();
+    toast("Post updated.");
+    return;
+  }
+
   if (event.target.id === "postForm") {
     event.preventDefault();
     if (!state.isAdmin) {
@@ -1718,14 +1856,9 @@ document.addEventListener("submit", async (event) => {
 
     const form = new FormData(event.target);
     const payload = taskPayloadFromForm(form);
-    const startDateTime = dateTimeFromParts(payload.start_date, payload.start_time);
-    const endDateTime = dateTimeFromParts(payload.end_date, payload.end_time);
-    if (!endDateTime) {
-      toast("Set the end or due date and time.");
-      return;
-    }
-    if (startDateTime && endDateTime < startDateTime) {
-      toast("End time must be after the start time.");
+    const validationMessage = validateTaskPayload(payload);
+    if (validationMessage) {
+      toast(validationMessage);
       return;
     }
     let task = taskFromRow({ id: Date.now(), ...payload });
@@ -1762,7 +1895,7 @@ document.addEventListener("submit", async (event) => {
 
     state.tasks.unshift(task);
     state.posts.unshift({
-      id: Date.now(),
+      id: task.id,
       type: payload.type,
       title: payload.title,
       description: payload.description,

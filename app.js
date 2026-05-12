@@ -1785,6 +1785,9 @@ document.addEventListener("click", async (event) => {
 
   const doneButton = event.target.closest("[data-mark-done]");
   if (doneButton) {
+    const task = state.tasks.find((item) => String(item.id) === String(doneButton.dataset.markDone));
+    const taskName = task?.title ? `"${task.title}"` : "this assignment";
+    if (!window.confirm(`Mark ${taskName} as done? This will move it to Done & Overdue for your account.`)) return;
     await markTaskDone(doneButton.dataset.markDone);
     return;
   }

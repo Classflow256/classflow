@@ -1303,7 +1303,7 @@ function renderReps() {
   }
 
   return `
-    <div class="page-grid rep-layout">
+    <div class="page-grid">
       <section class="page-grid">
         <div class="rep-hero">
           <div>
@@ -1348,13 +1348,6 @@ function renderReps() {
         </section>
       </section>
 
-      <aside class="page-grid">
-        <section class="content-card engagement-card">
-          <span class="card-kicker" style="color:#dce8ff">Engagement</span>
-          <strong>84%</strong>
-          <p>of classmates have read your last post</p>
-        </section>
-      </aside>
     </div>
   `;
 }

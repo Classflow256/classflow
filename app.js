@@ -471,9 +471,31 @@ function tasksOnDate(date) {
 function calendarTypeClass(type) {
   const normalized = String(type || "").toLowerCase();
   if (normalized === "assignment") return "assignment";
-  if (normalized === "test") return "test";
-  if (normalized === "exam") return "exam";
+  if (normalized === "announcement") return "announcement";
+  if (normalized === "test" || normalized === "exam") return "exam";
   return "announcement";
+}
+
+function isCalendarItemInactive(task) {
+  const endDate = taskEndDate(task);
+  const pastDue = endDate ? startOfDay(endDate) < startOfDay(new Date()) : false;
+  return pastDue || isTaskDone(task);
+}
+
+function calendarEventIndicators(events) {
+  const groups = new Map();
+  events.forEach((task) => {
+    const type = calendarTypeClass(task.type);
+    const key = isCalendarItemInactive(task) ? `${type}-inactive` : type;
+    const group = groups.get(key) || { type, inactive: isCalendarItemInactive(task), count: 0 };
+    group.count += 1;
+    groups.set(key, group);
+  });
+
+  const order = ["assignment", "announcement", "exam"];
+  return [...groups.values()]
+    .sort((a, b) => order.indexOf(a.type) - order.indexOf(b.type) || Number(a.inactive) - Number(b.inactive))
+    .slice(0, 3);
 }
 
 function visibleTasks() {
@@ -1066,12 +1088,11 @@ function renderCalendar() {
         <div class="calendar-grid">
           ${weekdays.map((day) => `<div class="weekday">${day}</div>`).join("")}
           ${days.map(({ date, muted, events, today }) => {
-            const uniqueTypes = [...new Set(events.map((task) => calendarTypeClass(task.type)))].slice(0, 3);
+            const indicators = calendarEventIndicators(events);
             return `
             <button class="day-cell ${muted ? "is-muted" : ""} ${date.getDate() === selectedDay && !muted ? "is-selected" : ""} ${events.length ? "has-event" : ""} ${today ? "is-today" : ""}" data-calendar-day="${muted ? "" : date.getDate()}" type="button" ${muted ? "tabindex=\"-1\"" : ""}>
               <span class="day-number">${date.getDate()}</span>
-              ${events.length ? `<span class="event-count">${events.length}</span>` : ""}
-              ${uniqueTypes.length ? `<span class="day-markers">${uniqueTypes.map((type) => `<i class="day-marker ${type}"></i>`).join("")}</span>` : ""}
+              ${indicators.length ? `<span class="day-event-cluster">${indicators.map((indicator) => `<span class="event-count ${indicator.type} ${indicator.inactive ? "inactive" : ""}">${indicator.count}</span>`).join("")}</span>` : ""}
             </button>
           `;
           }).join("")}
@@ -1082,8 +1103,9 @@ function renderCalendar() {
         <section class="content-card legend-card">
           <div class="legend-row">
             <span class="legend-dot assignment"></span><span>Assignment</span>
-            <span class="legend-dot test"></span><span>Test</span>
+            <span class="legend-dot announcement"></span><span>Announcement</span>
             <span class="legend-dot exam"></span><span>Exam</span>
+            <span class="legend-dot inactive"></span><span>Due / Done</span>
           </div>
         </section>
 

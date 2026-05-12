@@ -1256,38 +1256,39 @@ a {
   background: #fff;
 }
 
-.event-count {
+.day-event-cluster {
   position: absolute;
   top: 10px;
   right: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px;
+  max-width: 70px;
+}
+
+.event-count {
   min-width: 22px;
   height: 22px;
   display: inline-grid;
   place-items: center;
   border-radius: 50%;
   color: #fff;
-  background: var(--brand);
+  background: #c2185b;
   font-size: 11px;
   font-weight: 800;
 }
 
-.day-cell.is-selected .event-count {
-  color: var(--brand-deep);
-  background: #fff;
+.event-count.announcement {
+  background: #16b96f;
 }
 
-.day-markers {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
-  align-self: end;
+.event-count.exam {
+  background: #2868c9;
 }
 
-.day-marker {
-  width: 18px;
-  height: 5px;
-  border-radius: 999px;
-  background: var(--brand);
+.event-count.inactive {
+  background: #a7a1a6;
 }
 
 .legend-card {
@@ -1308,23 +1309,20 @@ a {
   background: var(--brand);
 }
 
-.legend-dot.assignment,
-.day-marker.assignment {
+.legend-dot.assignment {
   background: var(--brand);
 }
 
-.legend-dot.test,
-.day-marker.test {
-  background: #7751b7;
-}
-
-.legend-dot.exam,
-.day-marker.exam {
-  background: #ea4d89;
-}
-
-.day-marker.announcement {
+.legend-dot.announcement {
   background: var(--green);
+}
+
+.legend-dot.exam {
+  background: #2868c9;
+}
+
+.legend-dot.inactive {
+  background: #a7a1a6;
 }
 
 .calendar-side {
@@ -1838,9 +1836,17 @@ svg {
     font-size: 14px;
   }
 
-  .event-count {
+  .day-event-cluster {
     top: 6px;
     right: 6px;
+    gap: 3px;
+    max-width: 46px;
+  }
+
+  .event-count {
+    min-width: 18px;
+    height: 18px;
+    font-size: 10px;
   }
 
   .agenda-item {

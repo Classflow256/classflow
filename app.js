@@ -117,7 +117,10 @@ const state = {
   tasks: [],
   posts: [],
   completedTaskIds: new Set(),
-  ownerUserCount: null
+  ownerUserCount: null,
+  ownerPresidentCount: null,
+  ownerPresidents: [],
+  ownerViewDashboardKey: ""
 };
 
 const viewStage = document.querySelector("#viewStage");
@@ -236,6 +239,21 @@ function dashboardOptions() {
       label: `${year} - ${course}`
     }))
   );
+}
+
+function dashboardKeyFromParts(year, courseCode) {
+  return `${year}-${String(courseCode || "").toLowerCase()}`;
+}
+
+function dashboardLabelForKey(dashboardKey) {
+  const [year, code] = String(dashboardKey || "").split("-");
+  const course = COURSE_CODES[code];
+  return year && course ? `${year} - ${course}` : "";
+}
+
+function activeDashboardKey() {
+  if (state.isOwner) return state.ownerViewDashboardKey || "";
+  return state.currentUser?.dashboardKey || "";
 }
 
 function courseForDashboardKey(dashboardKey) {
@@ -593,11 +611,15 @@ function showDashboard() {
   authScreen.classList.add("is-hidden");
   appScreen.classList.remove("is-hidden");
   updateAvatarButton();
-  routeTo("home");
+  routeTo(state.isAdmin && !state.isOwner ? "reps" : "home");
 }
 
 function dashboardLabel() {
-  if (state.isOwner) return "App owner dashboard";
+  if (state.isOwner) {
+    return state.ownerViewDashboardKey
+      ? dashboardLabelForKey(state.ownerViewDashboardKey)
+      : "App owner dashboard";
+  }
   if (!state.currentUser?.year || !state.currentUser?.course) return "Faculty of Engineering";
   return `${state.currentUser.course} - ${state.currentUser.studyYear || state.currentUser.year}`;
 }
@@ -669,7 +691,7 @@ function taskPayloadFromForm(form) {
   const startTime = String(form.get("start_time") || localTimeInputValue()).trim();
   const endDate = String(form.get("end_date") || "").trim();
   const endTime = String(form.get("end_time") || "").trim();
-  const dashboardKey = form.get("dashboard_key") || state.currentUser?.dashboardKey || "";
+  const dashboardKey = form.get("dashboard_key") || activeDashboardKey();
   const resourceLink = String(form.get("resource_link") || "").trim();
   return {
     type,
@@ -802,8 +824,9 @@ async function loadClassItems() {
     .select("*")
     .order("created_at", { ascending: false });
 
-  if (!state.isOwner && state.currentUser?.dashboardKey) {
-    query = query.eq("dashboard_key", state.currentUser.dashboardKey);
+  const dashboardKey = activeDashboardKey();
+  if (dashboardKey) {
+    query = query.eq("dashboard_key", dashboardKey);
   }
 
   const { data, error } = await query;
@@ -824,18 +847,32 @@ async function loadClassItems() {
 async function loadOwnerMetrics() {
   if (!supabaseClient || !state.isOwner) return;
 
-  const { count, error } = await supabaseClient
+  const { count, error: profileError } = await supabaseClient
     .from("profiles")
     .select("id", { count: "exact", head: true });
 
-  if (error) {
-    console.error(error);
+  if (profileError) {
+    console.error(profileError);
     state.ownerUserCount = null;
-    render();
-    return;
+  } else {
+    state.ownerUserCount = count || 0;
   }
 
-  state.ownerUserCount = count || 0;
+  const { data: presidents, error: presidentsError } = await supabaseClient
+    .from("app_roles")
+    .select("email, full_name, year_joined, course_code, student_number, dashboard_key")
+    .eq("role", "admin")
+    .order("email", { ascending: true });
+
+  if (presidentsError) {
+    console.error(presidentsError);
+    state.ownerPresidentCount = null;
+    state.ownerPresidents = [];
+  } else {
+    state.ownerPresidents = presidents || [];
+    state.ownerPresidentCount = state.ownerPresidents.length;
+  }
+
   render();
 }
 
@@ -1241,9 +1278,25 @@ function renderReps() {
     const enrolledUsers = state.ownerUserCount === null
       ? "--"
       : String(state.ownerUserCount).padStart(2, "0");
-    const dashboardSelect = dashboardOptions()
-      .map((dashboard) => `<option value="${dashboard.key}">${dashboard.label}</option>`)
+    const presidentCount = state.ownerPresidentCount === null
+      ? String(PRESIDENT_EMAILS.length).padStart(2, "0")
+      : String(state.ownerPresidentCount).padStart(2, "0");
+    const courseOptions = Object.entries(COURSE_CODES)
+      .map(([code, course]) => `<option value="${code}">${course}</option>`)
       .join("");
+    const selectedDashboard = state.ownerViewDashboardKey || dashboardKeyFromParts(CURRENT_COHORT_YEAR, "bit");
+    const [selectedYear = String(CURRENT_COHORT_YEAR), selectedCourse = "bit"] = selectedDashboard.split("-");
+    const dashboardSelect = dashboardOptions()
+      .map((dashboard) => `<option value="${dashboard.key}" ${dashboard.key === selectedDashboard ? "selected" : ""}>${dashboard.label}</option>`)
+      .join("");
+    const presidentList = state.ownerPresidents.length
+      ? state.ownerPresidents.map((president) => `
+          <article>
+            <span class="field-label">${president.full_name || "Class President"}</span>
+            <p>${president.email}</p>
+          </article>
+        `).join("")
+      : `<article><span class="field-label">Presidents</span><p>No added presidents yet.</p></article>`;
 
     return `
       <div class="page-grid">
@@ -1251,7 +1304,7 @@ function renderReps() {
         <div class="stats-grid">
           ${statCard("users", "Users", enrolledUsers, "Total enrolled accounts", "")}
           ${statCard("clipboard", "Courses", String(Object.keys(COURSE_CODES).length).padStart(2, "0"), "Detected From Class Email", "")}
-          ${statCard("alarm", "Admin Emails", String(PRESIDENT_EMAILS.length).padStart(2, "0"), "Class President Access", "red")}
+          ${statCard("alarm", "Presidents", presidentCount, "Class President Access", "red")}
         </div>
         <section class="content-card form-card">
           <h2><span class="stat-icon">${icon("edit")}</span> Platform Configuration</h2>
@@ -1273,6 +1326,60 @@ function renderReps() {
               <p>${OWNER_EMAILS.join(", ")}</p>
             </article>
           </div>
+        </section>
+        <section class="content-card form-card">
+          <h2><span class="stat-icon">${icon("users")}</span> Add Class President</h2>
+          <form id="presidentForm" class="form-grid">
+            <label class="form-control">
+              <span class="field-label">President Name</span>
+              <input name="full_name" placeholder="e.g. Alex Opaki" required />
+            </label>
+            <div class="form-grid two">
+              <label class="form-control">
+                <span class="field-label">Year</span>
+                <select name="year_joined" required>
+                  ${SUPPORTED_YEARS.map((year) => `<option value="${year}">${year}</option>`).join("")}
+                </select>
+              </label>
+              <label class="form-control">
+                <span class="field-label">Course</span>
+                <select name="course_code" required>${courseOptions}</select>
+              </label>
+            </div>
+            <label class="form-control">
+              <span class="field-label">Registration Number</span>
+              <input name="student_number" inputmode="numeric" placeholder="e.g. 196" required />
+            </label>
+            <div class="form-actions single">
+              <button class="primary-action" type="submit">Add President</button>
+            </div>
+          </form>
+          <div class="owner-grid owner-president-list">
+            ${presidentList}
+          </div>
+        </section>
+        <section class="content-card form-card">
+          <h2><span class="stat-icon">${icon("search")}</span> View Class Dashboard</h2>
+          <form id="ownerDashboardForm" class="form-grid">
+            <div class="form-grid two">
+              <label class="form-control">
+                <span class="field-label">Year</span>
+                <select name="year_joined" required>
+                  ${SUPPORTED_YEARS.map((year) => `<option value="${year}" ${year === selectedYear ? "selected" : ""}>${year}</option>`).join("")}
+                </select>
+              </label>
+              <label class="form-control">
+                <span class="field-label">Course</span>
+                <select name="course_code" required>
+                  ${Object.entries(COURSE_CODES).map(([code, course]) => `<option value="${code}" ${code === selectedCourse ? "selected" : ""}>${course}</option>`).join("")}
+                </select>
+              </label>
+            </div>
+            <div class="form-actions">
+              <button class="secondary-action" type="button" data-clear-owner-dashboard>View All</button>
+              <button class="primary-action" type="submit">View Dashboard</button>
+            </div>
+          </form>
         </section>
         <section class="content-card form-card">
           <h2><span class="stat-icon">${icon("edit")}</span> Publish To A Class</h2>
@@ -1839,6 +1946,14 @@ document.addEventListener("click", async (event) => {
     return;
   }
 
+  if (event.target.closest("[data-clear-owner-dashboard]") && state.isOwner) {
+    state.ownerViewDashboardKey = "";
+    routeTo("home");
+    await loadClassItems();
+    toast("Showing all owner dashboards.");
+    return;
+  }
+
   if (event.target.closest("#profileBtn")) {
     openModal(profileModal());
     return;
@@ -1853,6 +1968,9 @@ document.addEventListener("click", async (event) => {
     state.tasks = [];
     state.completedTaskIds = new Set();
     state.ownerUserCount = null;
+    state.ownerPresidentCount = null;
+    state.ownerPresidents = [];
+    state.ownerViewDashboardKey = "";
     updateAvatarButton();
     closeModal();
     appScreen.classList.add("is-hidden");
@@ -1892,6 +2010,72 @@ document.addEventListener("input", (event) => {
 });
 
 document.addEventListener("submit", async (event) => {
+  if (event.target.id === "ownerDashboardForm") {
+    event.preventDefault();
+    if (!state.isOwner) {
+      toast("Only the owner can switch dashboards.");
+      return;
+    }
+
+    const form = new FormData(event.target);
+    const year = String(form.get("year_joined") || "").trim();
+    const courseCode = String(form.get("course_code") || "").trim().toLowerCase();
+    state.ownerViewDashboardKey = dashboardKeyFromParts(year, courseCode);
+    routeTo("home");
+    await loadClassItems();
+    toast(`Viewing ${dashboardLabelForKey(state.ownerViewDashboardKey)}.`);
+    return;
+  }
+
+  if (event.target.id === "presidentForm") {
+    event.preventDefault();
+    if (!state.isOwner) {
+      toast("Only the owner can add class presidents.");
+      return;
+    }
+
+    const form = new FormData(event.target);
+    const fullName = String(form.get("full_name") || "").trim();
+    const year = String(form.get("year_joined") || "").trim();
+    const courseCode = String(form.get("course_code") || "").trim().toLowerCase();
+    const studentNumber = String(form.get("student_number") || "").replace(/\D/g, "");
+    if (!fullName || !year || !COURSE_CODES[courseCode] || !studentNumber) {
+      toast("Enter the president name, year, course, and registration number.");
+      return;
+    }
+
+    const email = `${year}${courseCode}${studentNumber}@std.must.ac.ug`;
+    const dashboardKey = dashboardKeyFromParts(year, courseCode);
+
+    if (!supabaseClient) {
+      toast(`President email prepared: ${email}`);
+      return;
+    }
+
+    const { error } = await supabaseClient
+      .from("app_roles")
+      .upsert({
+        email,
+        role: "admin",
+        full_name: fullName,
+        year_joined: year,
+        course_code: courseCode,
+        student_number: studentNumber,
+        dashboard_key: dashboardKey
+      }, { onConflict: "email" });
+
+    if (error) {
+      console.error(error);
+      toast(error.message);
+      return;
+    }
+
+    event.target.reset();
+    await loadOwnerMetrics();
+    toast(`${email} can now sign up or sign in as class president.`);
+    return;
+  }
+
   if (event.target.id === "editTaskForm") {
     event.preventDefault();
     if (!canPresidentManagePosts()) {
@@ -1979,21 +2163,24 @@ document.addEventListener("submit", async (event) => {
       task = taskFromRow(data);
     }
 
-    state.tasks.unshift(task);
-    state.posts.unshift({
-      id: task.id,
-      type: payload.type,
-      title: payload.title,
-      description: payload.description,
-      due: payload.due,
-      time: payload.time,
-      startDate: payload.start_date,
-      startTime: payload.start_time,
-      endDate: payload.end_date,
-      endTime: payload.end_time,
-      posted: "Just now",
-      priority: payload.priority
-    });
+    const shouldShowPostedTask = !state.isOwner || !state.ownerViewDashboardKey || payload.dashboard_key === state.ownerViewDashboardKey;
+    if (shouldShowPostedTask) {
+      state.tasks.unshift(task);
+      state.posts.unshift({
+        id: task.id,
+        type: payload.type,
+        title: payload.title,
+        description: payload.description,
+        due: payload.due,
+        time: payload.time,
+        startDate: payload.start_date,
+        startTime: payload.start_time,
+        endDate: payload.end_date,
+        endTime: payload.end_time,
+        posted: "Just now",
+        priority: payload.priority
+      });
+    }
     event.target.reset();
     render();
     toast(supabaseClient ? "Post published to Supabase." : "Post published locally for this session.");

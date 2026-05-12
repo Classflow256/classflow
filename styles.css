@@ -1674,6 +1674,10 @@ a {
   margin-top: 22px;
 }
 
+.form-actions.single {
+  grid-template-columns: 1fr;
+}
+
 .owner-grid {
   display: grid;
   gap: 14px;
@@ -1690,6 +1694,10 @@ a {
   margin: 6px 0 0;
   color: #5f5260;
   line-height: 1.45;
+}
+
+.owner-president-list {
+  margin-top: 18px;
 }
 
 .profile-photo-panel {

@@ -79,8 +79,19 @@ alter table public.class_items add column if not exists end_time time;
 create table if not exists public.app_roles (
   email text primary key,
   role text not null check (role in ('admin', 'owner')),
+  full_name text,
+  year_joined text,
+  course_code text,
+  student_number text,
+  dashboard_key text,
   created_at timestamptz default now()
 );
+
+alter table public.app_roles add column if not exists full_name text;
+alter table public.app_roles add column if not exists year_joined text;
+alter table public.app_roles add column if not exists course_code text;
+alter table public.app_roles add column if not exists student_number text;
+alter table public.app_roles add column if not exists dashboard_key text;
 
 create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
@@ -130,7 +141,7 @@ alter table public.task_completions enable row level security;
 
 grant select on table public.class_items to authenticated;
 grant insert, update, delete on table public.class_items to authenticated;
-grant select on table public.app_roles to authenticated;
+grant select, insert, update on table public.app_roles to authenticated;
 grant select, insert, update on table public.profiles to authenticated;
 grant select, insert, update, delete on table public.task_completions to authenticated;
 
@@ -147,6 +158,8 @@ drop policy if exists "Admins can add class items" on public.class_items;
 drop policy if exists "Admins can update class items" on public.class_items;
 drop policy if exists "Admins can delete class items" on public.class_items;
 drop policy if exists "Authenticated users can read role list" on public.app_roles;
+drop policy if exists "Owners can add app roles" on public.app_roles;
+drop policy if exists "Owners can update app roles" on public.app_roles;
 drop policy if exists "Users can read their own profile" on public.profiles;
 drop policy if exists "Owners can read all profiles" on public.profiles;
 drop policy if exists "Users can create their own profile" on public.profiles;
@@ -285,6 +298,40 @@ for select
 to authenticated
 using (true);
 
+create policy "Owners can add app roles"
+on public.app_roles
+for insert
+to authenticated
+with check (
+  exists (
+    select 1
+    from public.app_roles owner_roles
+    where owner_roles.email = lower(coalesce(((select auth.jwt()) ->> 'email'), ''))
+      and owner_roles.role = 'owner'
+  )
+);
+
+create policy "Owners can update app roles"
+on public.app_roles
+for update
+to authenticated
+using (
+  exists (
+    select 1
+    from public.app_roles owner_roles
+    where owner_roles.email = lower(coalesce(((select auth.jwt()) ->> 'email'), ''))
+      and owner_roles.role = 'owner'
+  )
+)
+with check (
+  exists (
+    select 1
+    from public.app_roles owner_roles
+    where owner_roles.email = lower(coalesce(((select auth.jwt()) ->> 'email'), ''))
+      and owner_roles.role = 'owner'
+  )
+);
+
 create policy "Users can read their own profile"
 on public.profiles
 for select
@@ -373,9 +420,9 @@ The app currently knows these special emails in `app.js`:
 - Class president/admin: `2025bit196@std.must.ac.ug`
 - App owner: `owner@classflow256.com`
 
-Replace those constants with the real president and owner emails before launch. Students with normal MUST class emails automatically get student access and are routed to the dashboard for their year/course.
+Owners can add more class presidents from the Owner Console. The app stores those president emails in `public.app_roles`, so a matching class email is recognized as president access on signup or signin. Students with normal MUST class emails automatically get student access and are routed to the dashboard for their year/course.
 
-Owners can publish to any configured year/course dashboard. Class presidents can publish only to their own dashboard. When adding a task, the `start_date`, `start_time`, `end_date`, and `end_time` fields store the full schedule, while `resource_link` can store a URL, room, platform name, or submission location.
+Owners can publish to any configured year/course dashboard and can switch the visible dashboard from the Owner Console. Class presidents can publish only to their own dashboard. When adding a task, the `start_date`, `start_time`, `end_date`, and `end_time` fields store the full schedule, while `resource_link` can store a URL, room, platform name, or submission location.
 
 Profile pictures upload to the `avatars` bucket and the public URL is saved in `profiles.avatar_url`.
 

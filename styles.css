@@ -1279,7 +1279,7 @@ a {
   font-weight: 800;
 }
 
-.event-count.announcement {
+.event-count.notice {
   background: #16b96f;
 }
 
@@ -1313,7 +1313,7 @@ a {
   background: var(--brand);
 }
 
-.legend-dot.announcement {
+.legend-dot.notice {
   background: var(--green);
 }
 

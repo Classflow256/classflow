@@ -487,7 +487,12 @@ function calendarEventIndicators(events) {
   events.forEach((task) => {
     const type = calendarTypeClass(task.type);
     const key = isCalendarItemInactive(task) ? `${type}-inactive` : type;
-    const group = groups.get(key) || { type, inactive: isCalendarItemInactive(task), count: 0 };
+    const group = groups.get(key) || {
+      type,
+      markerClass: type === "announcement" ? "notice" : type,
+      inactive: isCalendarItemInactive(task),
+      count: 0
+    };
     group.count += 1;
     groups.set(key, group);
   });
@@ -1092,7 +1097,7 @@ function renderCalendar() {
             return `
             <button class="day-cell ${muted ? "is-muted" : ""} ${date.getDate() === selectedDay && !muted ? "is-selected" : ""} ${events.length ? "has-event" : ""} ${today ? "is-today" : ""}" data-calendar-day="${muted ? "" : date.getDate()}" type="button" ${muted ? "tabindex=\"-1\"" : ""}>
               <span class="day-number">${date.getDate()}</span>
-              ${indicators.length ? `<span class="day-event-cluster">${indicators.map((indicator) => `<span class="event-count ${indicator.type} ${indicator.inactive ? "inactive" : ""}">${indicator.count}</span>`).join("")}</span>` : ""}
+              ${indicators.length ? `<span class="day-event-cluster">${indicators.map((indicator) => `<span class="event-count ${indicator.markerClass} ${indicator.inactive ? "inactive" : ""}">${indicator.count}</span>`).join("")}</span>` : ""}
             </button>
           `;
           }).join("")}
@@ -1103,7 +1108,7 @@ function renderCalendar() {
         <section class="content-card legend-card">
           <div class="legend-row">
             <span class="legend-dot assignment"></span><span>Assignment</span>
-            <span class="legend-dot announcement"></span><span>Announcement</span>
+            <span class="legend-dot notice"></span><span>Announcement</span>
             <span class="legend-dot exam"></span><span>Exam</span>
             <span class="legend-dot inactive"></span><span>Due / Done</span>
           </div>

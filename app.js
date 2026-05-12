@@ -117,6 +117,7 @@ const state = {
   tasks: [],
   posts: [],
   completedTaskIds: new Set(),
+  readNotificationIds: new Set(),
   ownerUserCount: null,
   ownerPresidentCount: null,
   ownerPresidents: [],
@@ -749,6 +750,10 @@ function completionStorageKey() {
   return `classflow:completed:${state.currentUser?.email || "guest"}`;
 }
 
+function notificationStorageKey() {
+  return `classflow:notifications:${state.currentUser?.email || "guest"}:${activeDashboardKey() || "all"}`;
+}
+
 function loadLocalCompletions() {
   try {
     const stored = JSON.parse(localStorage.getItem(completionStorageKey()) || "[]");
@@ -761,6 +766,36 @@ function loadLocalCompletions() {
 
 function saveLocalCompletions() {
   localStorage.setItem(completionStorageKey(), JSON.stringify([...state.completedTaskIds]));
+}
+
+function loadReadNotifications() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(notificationStorageKey()) || "[]");
+    state.readNotificationIds = new Set(stored.map(String));
+  } catch (error) {
+    console.error(error);
+    state.readNotificationIds = new Set();
+  }
+}
+
+function saveReadNotifications() {
+  localStorage.setItem(notificationStorageKey(), JSON.stringify([...state.readNotificationIds]));
+}
+
+function unreadNotifications() {
+  return state.tasks.filter((task) => !state.readNotificationIds.has(String(task.id)));
+}
+
+function updateNotificationBadge() {
+  const badge = document.querySelector("#notificationCount");
+  const button = document.querySelector("#notificationsBtn");
+  if (!badge || !button) return;
+
+  const count = unreadNotifications().length;
+  badge.textContent = count > 99 ? "99+" : String(count);
+  badge.classList.toggle("is-hidden", count === 0);
+  button.setAttribute("aria-label", count ? `${count} unread notifications` : "Notifications");
+  button.title = count ? `${count} unread notifications` : "Notifications";
 }
 
 async function loadTaskCompletions() {
@@ -850,7 +885,9 @@ async function loadClassItems() {
   }
 
   state.tasks = data?.map(taskFromRow) || [];
+  loadReadNotifications();
   await loadTaskCompletions();
+  updateNotificationBadge();
   render();
 }
 
@@ -1704,6 +1741,7 @@ function render() {
   };
   viewStage.innerHTML = views[state.route]();
   hydrateIcons(viewStage);
+  updateNotificationBadge();
 }
 
 document.querySelector("#loginForm").addEventListener("submit", async (event) => {
@@ -1946,13 +1984,18 @@ document.addEventListener("click", async (event) => {
   }
 
   if (event.target.closest("#notificationsBtn")) {
-    const urgent = state.tasks.filter((task) => task.priority === "urgent");
+    const unread = unreadNotifications();
+    const notifications = state.tasks;
+    notifications.forEach((task) => state.readNotificationIds.add(String(task.id)));
+    saveReadNotifications();
+    updateNotificationBadge();
     openModal(`
       <h2 id="modalTitle">Notifications</h2>
       <div class="announcement-list" style="margin-top: 18px">
-        ${urgent.length ? urgent.map(taskCard).join("") : emptyCard("No urgent notifications.")}
+        ${notifications.length ? notifications.map(taskCard).join("") : emptyCard("No notifications yet.")}
       </div>
     `);
+    if (unread.length) toast("Notifications marked as read.");
     return;
   }
 
@@ -1977,6 +2020,7 @@ document.addEventListener("click", async (event) => {
     state.isOwner = false;
     state.tasks = [];
     state.completedTaskIds = new Set();
+    state.readNotificationIds = new Set();
     state.ownerUserCount = null;
     state.ownerPresidentCount = null;
     state.ownerPresidents = [];

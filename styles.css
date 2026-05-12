@@ -277,6 +277,33 @@ a {
   color: var(--brand);
 }
 
+.notification-button {
+  position: relative;
+}
+
+.notification-count {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 19px;
+  height: 19px;
+  padding: 0 5px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 999px;
+  border: 2px solid #fff;
+  background: var(--brand);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+  box-shadow: 0 8px 16px rgba(194, 24, 91, 0.25);
+}
+
+.notification-count.is-hidden {
+  display: none;
+}
+
 .icon-button.ghost {
   width: 34px;
   height: 34px;

@@ -186,6 +186,7 @@ function userInitial(profile = state.currentUser) {
 }
 
 function firstName() {
+  if (state.isOwner) return "Administrator";
   const name = state.currentUser?.fullName?.trim();
   if (name) return name.split(/\s+/)[0];
   const emailName = state.currentUser?.email?.split("@")[0] || "";
@@ -629,7 +630,7 @@ function dashboardLabel() {
   if (state.isOwner) {
     return state.ownerViewDashboardKey
       ? dashboardLabelForKey(state.ownerViewDashboardKey)
-      : "App owner dashboard";
+      : "Administrator dashboard";
   }
   if (!state.currentUser?.year || !state.currentUser?.course) return "Faculty of Engineering";
   return `${state.currentUser.course} - ${state.currentUser.studyYear || state.currentUser.year}`;
@@ -1369,7 +1370,7 @@ function renderReps() {
               <p>${PRESIDENT_EMAILS.join(", ")}</p>
             </article>
             <article>
-              <span class="field-label">Owner Emails</span>
+              <span class="field-label">Administrator Emails</span>
               <p>${OWNER_EMAILS.join(", ")}</p>
             </article>
           </div>
@@ -1627,7 +1628,7 @@ function profileModal() {
       </div>
       <div>
         <strong>${user.fullName || user.email || "Not signed in"}</strong>
-        <p>${state.isOwner ? "App Owner" : state.isAdmin ? "Class President" : "Student"}</p>
+        <p>${state.isOwner ? "Administrator" : state.isAdmin ? "Class President" : "Student"}</p>
       </div>
       <label class="secondary-action avatar-upload">
         Change Photo
@@ -1638,7 +1639,7 @@ function profileModal() {
       <article><span class="field-label">Name</span><p>${user.fullName || "Not added"}</p></article>
       <article><span class="field-label">Email</span><p>${user.email || "Not signed in"}</p></article>
       <article><span class="field-label">Gender</span><p>${user.gender || "Not added"}</p></article>
-      <article><span class="field-label">Role</span><p>${state.isOwner ? "Owner" : state.isAdmin ? "Class President" : "Student"}</p></article>
+      <article><span class="field-label">Role</span><p>${state.isOwner ? "Administrator" : state.isAdmin ? "Class President" : "Student"}</p></article>
       <article><span class="field-label">Course</span><p>${user.course || "Not available"}</p></article>
       <article><span class="field-label">Study Year</span><p>${user.studyYear || "Not available"}</p></article>
       <article><span class="field-label">Duration</span><p>${user.courseDuration ? `${user.courseDuration} Years` : "Not available"}</p></article>
@@ -1840,7 +1841,7 @@ document.querySelector("#loginForm").addEventListener("submit", async (event) =>
   showDashboard();
   await loadClassItems();
   await loadOwnerMetrics();
-  toast(state.isOwner ? "Owner access enabled." : state.isAdmin ? "Admin access enabled." : "Signed in to the Class Flow workspace.");
+  toast(state.isOwner ? "Administrator access enabled." : state.isAdmin ? "Admin access enabled." : "Signed in to the Class Flow workspace.");
 });
 
 document.querySelector("#loginForm").addEventListener("keydown", (event) => {
@@ -2003,7 +2004,7 @@ document.addEventListener("click", async (event) => {
     state.ownerViewDashboardKey = "";
     routeTo("home");
     await loadClassItems();
-    toast("Showing all owner dashboards.");
+    toast("Showing all administrator dashboards.");
     return;
   }
 
@@ -2067,7 +2068,7 @@ document.addEventListener("submit", async (event) => {
   if (event.target.id === "ownerDashboardForm") {
     event.preventDefault();
     if (!state.isOwner) {
-      toast("Only the owner can switch dashboards.");
+      toast("Only the administrator can switch dashboards.");
       return;
     }
 
@@ -2084,7 +2085,7 @@ document.addEventListener("submit", async (event) => {
   if (event.target.id === "presidentForm") {
     event.preventDefault();
     if (!state.isOwner) {
-      toast("Only the owner can add class presidents.");
+      toast("Only the administrator can add class presidents.");
       return;
     }
 

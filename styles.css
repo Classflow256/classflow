@@ -667,25 +667,28 @@ a {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 25px;
-  padding: 0 10px;
-  border-radius: 999px;
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.06em;
+  min-height: 24px;
+  padding: 3px 9px;
+  border: 1px solid #ead8e2;
+  border-radius: 7px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
   text-transform: uppercase;
-  color: var(--brand);
-  background: var(--soft-blue);
+  color: #6c1d43;
+  background: #fff;
 }
 
 .badge.red {
-  color: var(--red);
-  background: var(--red-soft);
+  color: #9c1b22;
+  border-color: #f0c6c9;
+  background: #fffafa;
 }
 
 .badge.green {
-  color: #075d40;
-  background: #dff7ec;
+  color: #276048;
+  border-color: #cfe5d9;
+  background: #fbfffc;
 }
 
 .section-head {
@@ -1005,23 +1008,31 @@ a {
 
 .tiny-button {
   min-height: 34px;
-  padding: 0 13px;
-  border: 0;
-  border-radius: 999px;
+  padding: 0 14px;
+  border: 1px solid #d7b8c8;
+  border-radius: 9px;
   color: #fff;
-  background: var(--brand);
-  font-weight: 750;
-  transition: transform 140ms ease, box-shadow 140ms ease;
+  background: #8f174f;
+  font-weight: 700;
+  box-shadow: none;
+  transition: border-color 140ms ease, background 140ms ease, color 140ms ease;
 }
 
 .tiny-button.secondary {
-  color: #075d40;
-  background: #dff7ec;
+  color: #245742;
+  border-color: #c8ded2;
+  background: #fbfffc;
 }
 
 .tiny-button:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 8px 18px rgba(70, 11, 42, 0.1);
+  border-color: #8f174f;
+  background: #74113f;
+}
+
+.tiny-button.secondary:hover {
+  color: #174532;
+  border-color: #94b9a5;
+  background: #f2faf5;
 }
 
 .progress-card {

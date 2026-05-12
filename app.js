@@ -1347,7 +1347,7 @@ function renderReps() {
 
     return `
       <div class="page-grid">
-        ${pageTitle("Owner Console", "Configure Class Flow for Mbarara University and monitor platform issues.")}
+        ${pageTitle("Administrator", "Configure Class Flow for Mbarara University and monitor platform issues.")}
         <div class="stats-grid">
           ${statCard("users", "Users", enrolledUsers, "Total enrolled accounts", "")}
           ${statCard("clipboard", "Courses", String(Object.keys(COURSE_CODES).length).padStart(2, "0"), "Detected From Class Email", "")}

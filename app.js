@@ -622,6 +622,10 @@ function isTaskDone(task) {
   return state.completedTaskIds.has(String(task.id));
 }
 
+function canPresidentManagePosts() {
+  return state.isAdmin && !state.isOwner;
+}
+
 function stats() {
   const assignments = state.tasks.filter((task) => task.type === "Assignment");
   const completedAssignments = assignments.filter(isTaskDone);
@@ -1022,6 +1026,8 @@ function taskCard(task) {
         </div>
         <div class="task-buttons">
           ${task.type === "Assignment" && !done ? `<button class="tiny-button secondary" data-mark-done="${task.id}" type="button">Mark as Done</button>` : ""}
+          ${canPresidentManagePosts() ? `<button class="tiny-button secondary" data-edit-post="${task.id}" type="button">Edit</button>` : ""}
+          ${canPresidentManagePosts() ? `<button class="tiny-button danger" data-delete-post="${task.id}" type="button">Delete</button>` : ""}
           <button class="tiny-button" data-task-action="${task.id}" type="button">${task.type === "Exam" ? "Study Guide" : "Details"}</button>
         </div>
       </div>
@@ -1336,10 +1342,10 @@ function postCard(post) {
       <div class="post-actions">
         <span class="badge ${post.priority === "high" ? "red" : ""}">${post.due}</span>
         <span class="task-meta">${icon("clock")} ${scheduleRange(post)}</span>
-        <span class="task-meta">
+        ${canPresidentManagePosts() ? `<span class="task-meta">
           <button class="icon-button ghost" type="button" data-edit-post="${post.id}" aria-label="Edit post">${icon("edit")}</button>
           <button class="icon-button ghost" type="button" data-delete-post="${post.id}" aria-label="Delete post">${icon("trash")}</button>
-        </span>
+        </span>` : ""}
       </div>
     </article>
   `;
@@ -1408,7 +1414,7 @@ function taskDetailModal(task) {
         <span class="badge ${task.priority === "urgent" ? "red" : ""}">${task.due}</span>
         <span class="task-meta">${icon("clock")} ${scheduleRange(task)}</span>
       </div>
-      ${state.isAdmin ? taskEditForm(task) : ""}
+      ${canPresidentManagePosts() ? taskEditForm(task) : ""}
     </div>
   `;
 }
@@ -1732,8 +1738,9 @@ document.addEventListener("click", async (event) => {
   }
 
   const deleteButton = event.target.closest("[data-delete-post]");
-  if (deleteButton && state.isAdmin) {
+  if (deleteButton && canPresidentManagePosts()) {
     const id = deleteButton.dataset.deletePost;
+    if (!window.confirm("Delete this post?")) return;
     if (supabaseClient) {
       const { error } = await supabaseClient.from("class_items").delete().eq("id", id);
       if (error) {
@@ -1749,7 +1756,7 @@ document.addEventListener("click", async (event) => {
   }
 
   const editButton = event.target.closest("[data-edit-post]");
-  if (editButton && state.isAdmin) {
+  if (editButton && canPresidentManagePosts()) {
     const task = state.tasks.find((item) => String(item.id) === String(editButton.dataset.editPost));
     if (task) openModal(taskDetailModal(task));
     return;
@@ -1839,8 +1846,8 @@ document.addEventListener("input", (event) => {
 document.addEventListener("submit", async (event) => {
   if (event.target.id === "editTaskForm") {
     event.preventDefault();
-    if (!state.isAdmin) {
-      toast("Only class presidents and owners can edit posts.");
+    if (!canPresidentManagePosts()) {
+      toast("Only class presidents can edit posts.");
       return;
     }
 

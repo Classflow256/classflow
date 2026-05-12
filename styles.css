@@ -1024,6 +1024,12 @@ a {
   background: #fbfffc;
 }
 
+.tiny-button.danger {
+  color: #9c1b22;
+  border-color: #f0c6c9;
+  background: #fffafa;
+}
+
 .tiny-button:hover {
   border-color: #8f174f;
   background: #74113f;
@@ -1033,6 +1039,12 @@ a {
   color: #174532;
   border-color: #94b9a5;
   background: #f2faf5;
+}
+
+.tiny-button.danger:hover {
+  color: #7f1218;
+  border-color: #d99aa0;
+  background: #fff2f3;
 }
 
 .progress-card {

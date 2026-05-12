@@ -148,6 +148,7 @@ drop policy if exists "Admins can update class items" on public.class_items;
 drop policy if exists "Admins can delete class items" on public.class_items;
 drop policy if exists "Authenticated users can read role list" on public.app_roles;
 drop policy if exists "Users can read their own profile" on public.profiles;
+drop policy if exists "Owners can read all profiles" on public.profiles;
 drop policy if exists "Users can create their own profile" on public.profiles;
 drop policy if exists "Users can update their own profile" on public.profiles;
 drop policy if exists "Users can read their completed tasks" on public.task_completions;
@@ -289,6 +290,19 @@ on public.profiles
 for select
 to authenticated
 using (auth.uid() = id);
+
+create policy "Owners can read all profiles"
+on public.profiles
+for select
+to authenticated
+using (
+  exists (
+    select 1
+    from public.app_roles
+    where app_roles.email = lower(coalesce(((select auth.jwt()) ->> 'email'), ''))
+      and app_roles.role = 'owner'
+  )
+);
 
 create policy "Users can create their own profile"
 on public.profiles

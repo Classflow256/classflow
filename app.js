@@ -116,7 +116,8 @@ const state = {
   search: "",
   tasks: [],
   posts: [],
-  completedTaskIds: new Set()
+  completedTaskIds: new Set(),
+  ownerUserCount: null
 };
 
 const viewStage = document.querySelector("#viewStage");
@@ -820,6 +821,24 @@ async function loadClassItems() {
   render();
 }
 
+async function loadOwnerMetrics() {
+  if (!supabaseClient || !state.isOwner) return;
+
+  const { count, error } = await supabaseClient
+    .from("profiles")
+    .select("id", { count: "exact", head: true });
+
+  if (error) {
+    console.error(error);
+    state.ownerUserCount = null;
+    render();
+    return;
+  }
+
+  state.ownerUserCount = count || 0;
+  render();
+}
+
 async function saveProfile(userId, profile) {
   if (!supabaseClient || !userId) return false;
 
@@ -1219,6 +1238,9 @@ function postScheduleFields(task = {}) {
 
 function renderReps() {
   if (state.isOwner) {
+    const enrolledUsers = state.ownerUserCount === null
+      ? "--"
+      : String(state.ownerUserCount).padStart(2, "0");
     const dashboardSelect = dashboardOptions()
       .map((dashboard) => `<option value="${dashboard.key}">${dashboard.label}</option>`)
       .join("");
@@ -1227,7 +1249,7 @@ function renderReps() {
       <div class="page-grid">
         ${pageTitle("Owner Console", "Configure Class Flow for Mbarara University and monitor platform issues.")}
         <div class="stats-grid">
-          ${statCard("users", "Users", "—", "Connected through Supabase Auth", "")}
+          ${statCard("users", "Users", enrolledUsers, "Total enrolled accounts", "")}
           ${statCard("clipboard", "Courses", String(Object.keys(COURSE_CODES).length).padStart(2, "0"), "Detected From Class Email", "")}
           ${statCard("alarm", "Admin Emails", String(PRESIDENT_EMAILS.length).padStart(2, "0"), "Class President Access", "red")}
         </div>
@@ -1662,6 +1684,7 @@ document.querySelector("#loginForm").addEventListener("submit", async (event) =>
   setUserRole(resolvedProfile);
   showDashboard();
   await loadClassItems();
+  await loadOwnerMetrics();
   toast(state.isOwner ? "Owner access enabled." : state.isAdmin ? "Admin access enabled." : "Signed in to the Class Flow workspace.");
 });
 
@@ -1829,6 +1852,7 @@ document.addEventListener("click", async (event) => {
     state.isOwner = false;
     state.tasks = [];
     state.completedTaskIds = new Set();
+    state.ownerUserCount = null;
     updateAvatarButton();
     closeModal();
     appScreen.classList.add("is-hidden");

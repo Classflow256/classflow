@@ -154,6 +154,7 @@ drop policy if exists "Users can read their completed tasks" on public.task_comp
 drop policy if exists "Users can mark their own tasks done" on public.task_completions;
 drop policy if exists "Users can update their completed tasks" on public.task_completions;
 drop policy if exists "Anyone can read profile photos" on storage.objects;
+drop policy if exists "Users can read their own profile photo" on storage.objects;
 drop policy if exists "Users can upload their own profile photo" on storage.objects;
 drop policy if exists "Users can update their own profile photo" on storage.objects;
 
@@ -321,11 +322,14 @@ to authenticated
 using (auth.uid() = user_id)
 with check (auth.uid() = user_id);
 
-create policy "Anyone can read profile photos"
+create policy "Users can read their own profile photo"
 on storage.objects
 for select
-to public
-using (bucket_id = 'avatars');
+to authenticated
+using (
+  bucket_id = 'avatars'
+  and (storage.foldername(name))[1] = auth.uid()::text
+);
 
 create policy "Users can upload their own profile photo"
 on storage.objects

@@ -194,6 +194,29 @@ function avatarImageUrl(url) {
   return `${url}${separator}v=${Date.now()}`;
 }
 
+function avatarStorageKey(email = state.currentUser?.email || "") {
+  return `classflow:avatar:${normalizeEmail(email || "guest")}`;
+}
+
+function rememberAvatar(email, avatarUrl) {
+  if (!email || !avatarUrl) return;
+  try {
+    localStorage.setItem(avatarStorageKey(email), avatarUrl);
+  } catch (error) {
+    console.warn("Could not store avatar locally.", error);
+  }
+}
+
+function savedAvatar(email) {
+  if (!email) return "";
+  try {
+    return localStorage.getItem(avatarStorageKey(email)) || "";
+  } catch (error) {
+    console.warn("Could not read saved avatar.", error);
+    return "";
+  }
+}
+
 function updateAvatarButton() {
   const button = document.querySelector("#profileBtn");
   if (!button) return;
@@ -238,11 +261,18 @@ async function roleForSignedInEmail(email) {
 }
 
 function profileFromRow(row, fallbackProfile) {
-  if (!row) return fallbackProfile;
+  if (!row) {
+    return {
+      ...fallbackProfile,
+      avatarUrl: fallbackProfile.avatarUrl || savedAvatar(fallbackProfile.email)
+    };
+  }
 
+  const email = row.email || fallbackProfile.email;
+  const storedAvatar = row.avatar_url ? avatarImageUrl(row.avatar_url) : "";
   return {
     ...fallbackProfile,
-    email: row.email || fallbackProfile.email,
+    email,
     fullName: row.full_name || fallbackProfile.fullName || "",
     gender: row.gender || fallbackProfile.gender || "",
     regNumber: row.reg_number || fallbackProfile.regNumber,
@@ -255,7 +285,7 @@ function profileFromRow(row, fallbackProfile) {
     studyYear: row.study_year || fallbackProfile.studyYear || studyYearFor(row.year_joined || fallbackProfile.year, row.course_code || fallbackProfile.courseCode),
     dashboardKey: row.dashboard_key || fallbackProfile.dashboardKey,
     role: row.role || fallbackProfile.role,
-    avatarUrl: row.avatar_url || fallbackProfile.avatarUrl || ""
+    avatarUrl: storedAvatar || fallbackProfile.avatarUrl || savedAvatar(email)
   };
 }
 
@@ -1322,6 +1352,9 @@ async function handleAvatarUpload(file) {
     ...state.currentUser,
     avatarUrl: previewUrl
   };
+  if (previewUrl.length < 3500000) {
+    rememberAvatar(state.currentUser.email, previewUrl);
+  }
   updateAvatarButton();
   modalContent.innerHTML = profileModal();
   hydrateIcons(modalHost);
@@ -1361,6 +1394,7 @@ async function handleAvatarUpload(file) {
     ...state.currentUser,
     avatarUrl: publicUrl
   });
+  rememberAvatar(state.currentUser.email, publicUrl);
 
   state.currentUser = {
     ...state.currentUser,

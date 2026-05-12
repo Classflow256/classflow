@@ -241,6 +241,16 @@ function dashboardOptions() {
   );
 }
 
+function ownerCourseGrid() {
+  return Object.entries(COURSE_CODES).map(([code, course]) => `
+    <div class="course-pill">
+      <strong>${code}</strong>
+      <span>${course}</span>
+      <small>${courseDuration(code)} years</small>
+    </div>
+  `).join("");
+}
+
 function dashboardKeyFromParts(year, courseCode) {
   return `${year}-${String(courseCode || "").toLowerCase()}`;
 }
@@ -1315,7 +1325,7 @@ function renderReps() {
             </article>
             <article>
               <span class="field-label">Courses</span>
-              <p>${Object.entries(COURSE_CODES).map(([code, course]) => `${code} - ${course} (${courseDuration(code)} years)`).join(", ")}</p>
+              <div class="course-list">${ownerCourseGrid()}</div>
             </article>
             <article>
               <span class="field-label">President Emails</span>

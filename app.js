@@ -1483,6 +1483,12 @@ document.querySelector("#loginForm").addEventListener("submit", async (event) =>
   toast(state.isOwner ? "Owner access enabled." : state.isAdmin ? "Admin access enabled." : "Signed in to the Class Flow workspace.");
 });
 
+document.querySelector("#loginForm").addEventListener("keydown", (event) => {
+  if (event.key !== "Enter" || event.target.id !== "studentPassword") return;
+  event.preventDefault();
+  event.currentTarget.requestSubmit();
+});
+
 function renderAuth() {
   document.querySelector("#loginForm").innerHTML = renderAuthForm();
   hydrateIcons(document.querySelector("#loginForm"));

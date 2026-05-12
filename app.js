@@ -1277,7 +1277,7 @@ function renderReps() {
             <h1 class="rep-title">Rep Console</h1>
             <p style="color: var(--muted); line-height:1.45">Manage academic updates and coordinate with your class.</p>
           </div>
-          <button class="primary-action" type="button" data-focus-post>${icon("plus")} Create New Update</button>
+          <button class="primary-action" type="button" data-focus-post>Create New Update</button>
         </div>
         <section class="content-card form-card">
           <h2><span class="stat-icon">${icon("edit")}</span> Draft New Post</h2>

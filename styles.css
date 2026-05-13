@@ -1202,12 +1202,18 @@ a {
 
 .notification-dot {
   width: 8px;
+  min-width: 8px;
+  max-width: 8px;
   height: 8px;
+  min-height: 8px;
+  max-height: 8px;
+  padding: 0;
   border-radius: 50%;
   background: var(--brand);
+  display: block;
 }
 
-.notification-dot.announcement {
+.notification-dot.notice {
   background: var(--green);
 }
 

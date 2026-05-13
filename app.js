@@ -875,10 +875,21 @@ function saveReadNotifications() {
 
 function unreadNotifications() {
   return state.tasks.filter((task) => {
-    const id = String(task.id);
-    const fingerprint = `${task.dashboardKey || ""}:${task.title}:${task.startDate || ""}:${task.endDate || ""}`;
-    return !state.readNotificationIds.has(id) && !state.readNotificationIds.has(fingerprint);
+    return !notificationReadKeys(task).some((key) => state.readNotificationIds.has(key));
   });
+}
+
+function notificationReadKeys(task) {
+  return [
+    String(task.id),
+    `${task.dashboardKey || ""}:${task.title}:${task.startDate || ""}:${task.endDate || ""}`
+  ];
+}
+
+function markNotificationRead(task) {
+  notificationReadKeys(task).forEach((key) => state.readNotificationIds.add(key));
+  saveReadNotifications();
+  updateNotificationBadge();
 }
 
 function updateNotificationBadge() {
@@ -1313,12 +1324,13 @@ function taskCard(task) {
 
 function notificationItem(task) {
   const type = calendarTypeClass(task.type);
+  const markerClass = type === "announcement" ? "notice" : type;
   const done = isTaskDone(task);
   const dateText = scheduleRange(task);
   const statusText = done ? "Done" : task.type;
   return `
-    <button class="notification-item ${type} ${done ? "is-done" : ""}" type="button" data-task-action="${task.id}">
-      <span class="notification-dot ${type}"></span>
+    <button class="notification-item notification-${type} ${done ? "is-done" : ""}" type="button" data-task-action="${task.id}">
+      <span class="notification-dot ${markerClass}"></span>
       <span class="notification-copy">
         <strong>${task.title}</strong>
         <span>${statusText} - ${dateText}</span>
@@ -2323,7 +2335,12 @@ document.addEventListener("click", async (event) => {
   const taskButton = event.target.closest("[data-task-action]");
   if (taskButton) {
     const task = state.tasks.find((item) => String(item.id) === String(taskButton.dataset.taskAction));
-    if (task) openModal(taskDetailModal(task));
+    if (task) {
+      if (taskButton.closest(".notification-item")) {
+        markNotificationRead(task);
+      }
+      openModal(taskDetailModal(task));
+    }
     return;
   }
 
@@ -2334,21 +2351,13 @@ document.addEventListener("click", async (event) => {
   }
 
   if (event.target.closest("#notificationsBtn")) {
-    const unread = unreadNotifications();
-    const notifications = state.tasks;
-    notifications.forEach((task) => {
-      state.readNotificationIds.add(String(task.id));
-      state.readNotificationIds.add(`${task.dashboardKey || ""}:${task.title}:${task.startDate || ""}:${task.endDate || ""}`);
-    });
-    saveReadNotifications();
-    updateNotificationBadge();
+    const notifications = unreadNotifications();
     openModal(`
       <h2 id="modalTitle">Notifications</h2>
       <div class="notification-list">
         ${notifications.length ? notifications.map(notificationItem).join("") : `<p class="notification-empty">No notifications yet.</p>`}
       </div>
     `);
-    if (unread.length) toast("Notifications marked as read.");
     return;
   }
 

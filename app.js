@@ -152,6 +152,7 @@ const APP_FORM_IDS = new Set([
   "editTaskForm",
   "postForm"
 ]);
+const APP_ROUTES = new Set(["home", "tasks", "calendar", "timetable", "reps"]);
 
 function normalizeEmail(email) {
   return email.trim().toLowerCase();
@@ -241,6 +242,30 @@ function savedAvatar(email) {
     return localStorage.getItem(avatarStorageKey(email)) || "";
   } catch (error) {
     console.warn("Could not read saved avatar.", error);
+    return "";
+  }
+}
+
+function routeStorageKey(email = state.currentUser?.email || "") {
+  return `classflow:last-route:${normalizeEmail(email || "guest")}`;
+}
+
+function saveLastRoute(route = state.route) {
+  if (!APP_ROUTES.has(route) || !state.currentUser?.email) return;
+  try {
+    localStorage.setItem(routeStorageKey(), route);
+  } catch (error) {
+    console.warn("Could not save last route.", error);
+  }
+}
+
+function savedLastRoute(email = state.currentUser?.email || "") {
+  if (!email) return "";
+  try {
+    const route = localStorage.getItem(routeStorageKey(email)) || "";
+    return APP_ROUTES.has(route) ? route : "";
+  } catch (error) {
+    console.warn("Could not read last route.", error);
     return "";
   }
 }
@@ -691,11 +716,15 @@ function setUserRole(profile) {
   state.currentUser = profile;
 }
 
-function showDashboard() {
+function defaultDashboardRoute() {
+  return state.isAdmin && !state.isOwner ? "reps" : "home";
+}
+
+function showDashboard(preferredRoute = "") {
   authScreen.classList.add("is-hidden");
   appScreen.classList.remove("is-hidden");
   updateAvatarButton();
-  routeTo(state.isAdmin && !state.isOwner ? "reps" : "home");
+  routeTo(preferredRoute || defaultDashboardRoute());
 }
 
 async function profileForSessionUser(user) {
@@ -731,22 +760,24 @@ async function profileForSessionUser(user) {
 }
 
 async function restoreSession() {
-  if (!supabaseClient) return;
+  if (!supabaseClient) return false;
 
   const { data, error } = await supabaseClient.auth.getSession();
   if (error) {
     console.error(error);
-    return;
+    return false;
   }
-  if (!data?.session?.user) return;
+  if (!data?.session?.user) return false;
 
   state.session = data.session;
   const profile = await profileForSessionUser(data.session.user);
   setUserRole(profile);
-  showDashboard();
+  const lastRoute = savedLastRoute(profile.email);
+  showDashboard(lastRoute);
   await loadClassItems();
   await loadTimetable();
   await loadOwnerMetrics();
+  return true;
 }
 
 function dashboardLabel() {
@@ -1225,6 +1256,7 @@ function routeTo(route) {
     route = "home";
   }
   state.route = route;
+  saveLastRoute(route);
   document.querySelectorAll("[data-route]").forEach((item) => {
     item.classList.toggle("is-active", item.dataset.route === route);
   });
@@ -2474,6 +2506,7 @@ document.addEventListener("click", async (event) => {
   }
 
   if (event.target.closest("[data-sign-out]")) {
+    const signedOutEmail = state.currentUser?.email || "";
     if (supabaseClient) await supabaseClient.auth.signOut();
     state.session = null;
     state.currentUser = null;
@@ -2488,6 +2521,11 @@ document.addEventListener("click", async (event) => {
     state.ownerPresidentCount = null;
     state.ownerPresidents = [];
     state.ownerViewDashboardKey = "";
+    try {
+      localStorage.removeItem(routeStorageKey(signedOutEmail));
+    } catch (error) {
+      console.warn("Could not clear last route.", error);
+    }
     updateAvatarButton();
     closeModal();
     appScreen.classList.add("is-hidden");
@@ -2831,10 +2869,16 @@ document.addEventListener("submit", async (event) => {
 });
 
 async function initApp() {
-  renderAuth();
   hydrateIcons();
+  if (supabaseClient) {
+    authScreen.classList.add("is-hidden");
+    const restored = await restoreSession();
+    if (restored) return;
+  }
+  renderAuth();
+  appScreen.classList.add("is-hidden");
+  authScreen.classList.remove("is-hidden");
   render();
-  await restoreSession();
 }
 
 initApp();

@@ -698,6 +698,57 @@ function showDashboard() {
   routeTo(state.isAdmin && !state.isOwner ? "reps" : "home");
 }
 
+async function profileForSessionUser(user) {
+  const email = normalizeEmail(user?.email || "");
+  const metadata = user?.user_metadata || {};
+  const parsedProfile = parseClassEmail(email);
+  const role = await roleForSignedInEmail(email);
+  const fallbackProfile = parsedProfile || {
+    email,
+    fullName: "",
+    gender: "",
+    year: "",
+    courseCode: "",
+    studentNumber: "",
+    regNumber: "",
+    university: UNIVERSITIES[0],
+    course: role === "owner" ? "Platform Administration" : "Class Update",
+    courseDuration: "",
+    studyYear: "",
+    dashboardKey: role === "owner" ? "owner" : ""
+  };
+
+  fallbackProfile.fullName = metadata.full_name || metadata.fullName || fallbackProfile.fullName || "";
+  fallbackProfile.gender = metadata.gender || fallbackProfile.gender || "";
+  fallbackProfile.role = role;
+  fallbackProfile.avatarUrl = "";
+
+  const profile = await loadUserProfile(user?.id, fallbackProfile);
+  return {
+    ...profile,
+    role
+  };
+}
+
+async function restoreSession() {
+  if (!supabaseClient) return;
+
+  const { data, error } = await supabaseClient.auth.getSession();
+  if (error) {
+    console.error(error);
+    return;
+  }
+  if (!data?.session?.user) return;
+
+  state.session = data.session;
+  const profile = await profileForSessionUser(data.session.user);
+  setUserRole(profile);
+  showDashboard();
+  await loadClassItems();
+  await loadTimetable();
+  await loadOwnerMetrics();
+}
+
 function dashboardLabel() {
   if (state.isOwner) {
     return state.ownerViewDashboardKey
@@ -2483,6 +2534,12 @@ document.addEventListener("input", (event) => {
   }
 });
 
+document.addEventListener("submit", (event) => {
+  if (APP_FORM_IDS.has(event.target.id)) {
+    event.preventDefault();
+  }
+}, true);
+
 document.addEventListener("submit", async (event) => {
   if (APP_FORM_IDS.has(event.target.id)) {
     event.preventDefault();
@@ -2773,9 +2830,14 @@ document.addEventListener("submit", async (event) => {
   }
 });
 
-renderAuth();
-hydrateIcons();
-render();
+async function initApp() {
+  renderAuth();
+  hydrateIcons();
+  render();
+  await restoreSession();
+}
+
+initApp();
 
 
 

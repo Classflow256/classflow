@@ -595,6 +595,11 @@ function renderAuthForm() {
   const isSignup = state.authMode === "signup";
 
   return `
+    <div class="auth-mobile-brand" aria-label="Class Flow">
+      <img src="assets/classflow-logo.png" alt="" />
+      <span>Class Flow</span>
+    </div>
+
     <div class="auth-heading">
       <h2>${isSignup ? "Join Your Class" : "Welcome"}</h2>
     </div>

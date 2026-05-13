@@ -2332,7 +2332,11 @@ document.addEventListener("click", async (event) => {
     const form = submitButton.closest("form");
     if (form) {
       if (typeof form.reportValidity === "function" && !form.reportValidity()) return;
-      form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+      if (typeof form.requestSubmit === "function") {
+        form.requestSubmit();
+      } else {
+        form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+      }
     }
     return;
   }

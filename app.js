@@ -648,6 +648,28 @@ function openModal(content) {
   hydrateIcons(modalHost);
 }
 
+function openTimetableEditById(id) {
+  const entry = state.timetableEntries.find((item) => String(item.id) === String(id));
+  if (entry) {
+    openModal(timetableEditModal(entry));
+    return true;
+  }
+  toast("This timetable item could not be opened. Please reload and try again.");
+  return false;
+}
+
+function handleTimetableEditButtonClick(event) {
+  event?.preventDefault?.();
+  event?.stopPropagation?.();
+  if (!state.isAdmin) {
+    toast("Only the administrator or class president can edit the timetable.");
+    return;
+  }
+  openTimetableEditById(event?.currentTarget?.dataset?.editTimetable || event?.target?.closest?.("[data-edit-timetable]")?.dataset?.editTimetable);
+}
+
+window.handleTimetableEditButtonClick = handleTimetableEditButtonClick;
+
 function renderAuthForm() {
   const isSignup = state.authMode === "signup";
 
@@ -1802,7 +1824,7 @@ function timetableSlot(entry) {
       <p>${[entry.venue, entry.lecturer].filter(Boolean).join(" - ") || "Class session"}</p>
       ${state.isAdmin ? `
         <div class="task-buttons">
-          <button class="tiny-button secondary" type="button" data-edit-timetable="${entry.id}">Edit</button>
+          <button class="tiny-button secondary" type="button" data-edit-timetable="${entry.id}" onclick="handleTimetableEditButtonClick(event)">Edit</button>
           <button class="tiny-button danger" type="button" data-delete-timetable="${entry.id}">Delete</button>
         </div>
       ` : ""}
@@ -2559,8 +2581,7 @@ document.addEventListener("click", async (event) => {
 
   const editTimetableButton = event.target.closest("[data-edit-timetable]");
   if (editTimetableButton && state.isAdmin) {
-    const entry = state.timetableEntries.find((item) => String(item.id) === String(editTimetableButton.dataset.editTimetable));
-    if (entry) openModal(timetableEditModal(entry));
+    openTimetableEditById(editTimetableButton.dataset.editTimetable);
     return;
   }
 

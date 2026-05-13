@@ -1714,14 +1714,31 @@ a {
   gap: 6px;
   align-self: stretch;
   margin: 5px;
-  padding: 10px;
+  padding: 44px 10px 10px;
   border: 1px solid #efd5e1;
   border-left: 4px solid var(--brand);
   border-radius: 10px;
   background: #fff;
   box-shadow: 0 12px 24px rgba(70, 11, 42, 0.06);
-  overflow: hidden;
+  overflow: visible;
   z-index: 5;
+}
+
+.timetable-slot:hover,
+.timetable-slot:focus-within {
+  z-index: 30;
+}
+
+.timetable-slot .task-buttons {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 35;
+}
+
+.timetable-slot .tiny-button {
+  min-height: 30px;
+  padding: 0 10px;
 }
 
 .timetable-time {
@@ -2308,7 +2325,7 @@ svg {
 
   .timetable-slot {
     margin: 3px;
-    padding: 8px;
+    padding: 40px 8px 8px;
     gap: 4px;
   }
 

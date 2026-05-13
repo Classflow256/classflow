@@ -68,6 +68,10 @@ a {
   display: none !important;
 }
 
+[hidden] {
+  display: none !important;
+}
+
 .site-shell {
   min-height: 100vh;
 }
@@ -497,7 +501,7 @@ a {
   inset: auto 0 0 0;
   height: var(--bottom-nav-height);
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(var(--nav-count, 4), 1fr);
   background: rgba(255, 250, 253, 0.94);
   border-top: 1px solid var(--line);
   backdrop-filter: blur(16px);
@@ -1167,6 +1171,85 @@ a {
   background: #fff2f3;
 }
 
+.notification-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.notification-item {
+  width: 100%;
+  min-height: 68px;
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid #efd5e1;
+  border-radius: 12px;
+  background: #fffdfd;
+  padding: 12px 14px;
+  color: var(--ink);
+  text-align: left;
+  box-shadow: 0 8px 18px rgba(70, 11, 42, 0.05);
+  transition: border-color 140ms ease, background 140ms ease, transform 140ms ease;
+}
+
+.notification-item:hover {
+  transform: translateY(-1px);
+  border-color: rgba(194, 24, 91, 0.28);
+  background: #fff8fb;
+}
+
+.notification-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--brand);
+}
+
+.notification-dot.announcement {
+  background: var(--green);
+}
+
+.notification-dot.exam {
+  background: #2868c9;
+}
+
+.notification-copy {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.notification-copy strong,
+.notification-copy span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.notification-copy strong {
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.notification-copy span {
+  color: #74636d;
+  font-size: 12px;
+}
+
+.notification-open {
+  color: var(--brand);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.notification-empty {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
 .progress-card {
   padding: 24px;
   background: #fff;
@@ -1235,20 +1318,20 @@ a {
 }
 
 .calendar-date-badge {
-  width: 106px;
-  min-width: 106px;
-  border-radius: 26px;
+  width: 88px;
+  min-width: 88px;
+  border-radius: 18px;
   overflow: hidden;
   color: #fff;
   text-align: center;
   background: var(--brand);
-  box-shadow: 0 20px 38px rgba(194, 24, 91, 0.2);
+  box-shadow: 0 14px 26px rgba(194, 24, 91, 0.18);
 }
 
 .calendar-date-badge span {
   display: block;
-  padding: 9px 8px;
-  font-size: 12px;
+  padding: 7px 8px;
+  font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.08em;
   background: rgba(70, 11, 42, 0.26);
@@ -1256,8 +1339,8 @@ a {
 
 .calendar-date-badge strong {
   display: block;
-  padding: 12px 8px 16px;
-  font-size: 46px;
+  padding: 9px 8px 11px;
+  font-size: 34px;
   line-height: 1;
 }
 
@@ -1306,6 +1389,22 @@ a {
 
 .calendar-controls {
   flex-wrap: nowrap;
+}
+
+.calendar-current-button {
+  min-width: 124px;
+  min-height: 44px;
+  display: inline-grid;
+  gap: 1px;
+  line-height: 1.05;
+}
+
+.calendar-current-button small {
+  color: #8b6478;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 .calendar-grid {
@@ -1424,8 +1523,15 @@ a {
 }
 
 .legend-card {
-  padding: 16px 18px;
+  padding: 14px 16px;
   background: #fffdfd;
+}
+
+.calendar-key {
+  margin-top: 16px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: 0 10px 24px rgba(70, 11, 42, 0.05);
 }
 
 .legend-row {
@@ -2129,7 +2235,7 @@ svg {
 
   .bottom-nav {
     overflow-x: auto;
-    grid-template-columns: repeat(5, minmax(74px, 1fr));
+    grid-template-columns: repeat(var(--nav-count, 4), minmax(74px, 1fr));
   }
 
   .nav-item {
@@ -2189,29 +2295,33 @@ svg {
     grid-template-columns: 1fr;
   }
 
-  .calendar-toolbar,
+  .calendar-toolbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 76px;
+    align-items: start;
+  }
+
   .calendar-control-bar {
     align-items: stretch;
     flex-direction: column;
   }
 
   .calendar-date-badge {
-    width: 100%;
-    min-width: 0;
-    display: grid;
-    grid-template-columns: 96px 1fr;
-    text-align: left;
+    width: 76px;
+    min-width: 76px;
+    justify-self: end;
+    border-radius: 16px;
   }
 
   .calendar-date-badge span,
   .calendar-date-badge strong {
-    display: grid;
-    place-items: center;
-    padding: 12px;
+    display: block;
+    text-align: center;
   }
 
   .calendar-date-badge strong {
-    font-size: 34px;
+    font-size: 29px;
+    padding: 8px 6px 10px;
   }
 
   .calendar-selectors,
@@ -2222,6 +2332,11 @@ svg {
 
   .calendar-controls {
     justify-content: space-between;
+  }
+
+  .calendar-current-button {
+    min-width: 112px;
+    padding: 0 14px;
   }
 
   .calendar-grid {
@@ -2257,6 +2372,16 @@ svg {
     min-width: 15px;
     height: 15px;
     font-size: 9px;
+  }
+
+  .calendar-key {
+    margin-top: 14px;
+    padding: 11px 12px;
+  }
+
+  .legend-row {
+    gap: 8px;
+    font-size: 11px;
   }
 
   .agenda-item {

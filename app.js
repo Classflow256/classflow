@@ -247,6 +247,22 @@ function updateAvatarButton() {
     : userInitial();
 }
 
+function updateNavigation() {
+  const adminVisible = Boolean(state.isAdmin);
+  document.querySelectorAll("[data-admin-nav]").forEach((item) => {
+    item.hidden = !adminVisible;
+  });
+  document.querySelectorAll(".bottom-nav").forEach((nav) => {
+    nav.style.setProperty("--nav-count", adminVisible ? "5" : "4");
+  });
+  if (!adminVisible && state.route === "reps") {
+    state.route = "home";
+  }
+  document.querySelectorAll("[data-route]").forEach((item) => {
+    item.classList.toggle("is-active", item.dataset.route === state.route);
+  });
+}
+
 function dashboardOptions() {
   return SUPPORTED_YEARS.flatMap((year) =>
     Object.entries(COURSE_CODES).map(([code, course]) => ({
@@ -450,6 +466,9 @@ function taskOccursOnDate(task, date) {
   const start = startOfDay(startSource);
   const end = startOfDay(endSource);
   const target = startOfDay(date);
+  if (task.type !== "Announcement") {
+    return isSameDay(target, end);
+  }
   return start && end && target >= start && target <= end;
 }
 
@@ -577,7 +596,7 @@ function renderAuthForm() {
 
   return `
     <div class="auth-heading">
-      <h2>${isSignup ? "Join Your Class" : "Welcome Back"}</h2>
+      <h2>${isSignup ? "Join Your Class" : "Welcome"}</h2>
     </div>
 
     <div class="auth-tabs">
@@ -1088,6 +1107,9 @@ function fileToDataUrl(file) {
 }
 
 function routeTo(route) {
+  if (route === "reps" && !state.isAdmin) {
+    route = "home";
+  }
   state.route = route;
   document.querySelectorAll("[data-route]").forEach((item) => {
     item.classList.toggle("is-active", item.dataset.route === route);
@@ -1116,7 +1138,7 @@ function renderHome() {
     <div class="page-grid">
       <section class="page-grid">
         ${pageTitle(
-          `Welcome back, ${firstName()}`,
+          `Welcome, ${firstName()}`,
           `${formatDate(new Date())} - ${dashboardLabel()}`
         )}
 
@@ -1289,6 +1311,23 @@ function taskCard(task) {
   `;
 }
 
+function notificationItem(task) {
+  const type = calendarTypeClass(task.type);
+  const done = isTaskDone(task);
+  const dateText = scheduleRange(task);
+  const statusText = done ? "Done" : task.type;
+  return `
+    <button class="notification-item ${type} ${done ? "is-done" : ""}" type="button" data-task-action="${task.id}">
+      <span class="notification-dot ${type}"></span>
+      <span class="notification-copy">
+        <strong>${task.title}</strong>
+        <span>${statusText} - ${dateText}</span>
+      </span>
+      <span class="notification-open">Details</span>
+    </button>
+  `;
+}
+
 function progressRow(label, value, width) {
   return `
     <div class="progress-row">
@@ -1316,6 +1355,8 @@ function renderCalendar() {
   const selectedDate = new Date(year, month, selectedDay);
   const agenda = tasksOnDate(selectedDate).sort((a, b) => String(a.time || a.due).localeCompare(String(b.time || b.due)));
   const selectedMonth = selectedDate.toLocaleDateString("en-US", { month: "short" }).toUpperCase();
+  const selectedDateLabel = selectedDate.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  const selectedIsToday = isSameDay(selectedDate, new Date());
 
   return `
     <div class="page-grid calendar-shell">
@@ -1345,10 +1386,22 @@ function renderCalendar() {
           </div>
           <div class="calendar-controls">
             <button class="icon-button" type="button" data-calendar-prev aria-label="Previous month">${icon("chevron-left")}</button>
-            <button class="secondary-action" type="button" data-calendar-today>Today</button>
+            <button class="secondary-action calendar-current-button" type="button" data-calendar-today aria-label="Jump to today">
+              <span>${selectedIsToday ? "Today" : selectedDateLabel}</span>
+              ${selectedIsToday ? "" : `<small>Go to today</small>`}
+            </button>
             <button class="icon-button" type="button" data-calendar-next aria-label="Next month">${icon("chevron-right")}</button>
           </div>
         </div>
+
+        <section class="legend-card calendar-key" aria-label="Calendar key">
+          <div class="legend-row">
+            <span class="legend-dot assignment"></span><span>Assignment</span>
+            <span class="legend-dot notice"></span><span>Announcement</span>
+            <span class="legend-dot exam"></span><span>Exam</span>
+            <span class="legend-dot inactive"></span><span>Due / Done</span>
+          </div>
+        </section>
 
         <div class="calendar-grid">
           ${weekdays.map((day) => `<div class="weekday">${day}</div>`).join("")}
@@ -1365,15 +1418,6 @@ function renderCalendar() {
       </section>
 
       <aside class="calendar-side">
-        <section class="content-card legend-card">
-          <div class="legend-row">
-            <span class="legend-dot assignment"></span><span>Assignment</span>
-            <span class="legend-dot notice"></span><span>Announcement</span>
-            <span class="legend-dot exam"></span><span>Exam</span>
-            <span class="legend-dot inactive"></span><span>Due / Done</span>
-          </div>
-        </section>
-
         <section class="content-card agenda-card">
           <div class="agenda-header">
             <h2 class="section-title">Daily Agenda</h2>
@@ -1752,12 +1796,7 @@ function renderReps() {
   }
 
   if (!state.isAdmin) {
-    return `
-      <div class="page-grid">
-        ${pageTitle("Administrator Panel", "Only the admin account can create or change class updates.")}
-        ${emptyCard("Class presidents get access automatically when they sign up with an approved admin email.")}
-      </div>
-    `;
+    return renderHome();
   }
 
   return `
@@ -2022,7 +2061,9 @@ function render() {
     timetable: renderTimetable,
     reps: renderReps
   };
-  viewStage.innerHTML = views[state.route]();
+  updateNavigation();
+  const view = views[state.route] || views.home;
+  viewStage.innerHTML = view();
   hydrateIcons(viewStage);
   updateNotificationBadge();
 }
@@ -2303,8 +2344,8 @@ document.addEventListener("click", async (event) => {
     updateNotificationBadge();
     openModal(`
       <h2 id="modalTitle">Notifications</h2>
-      <div class="announcement-list" style="margin-top: 18px">
-        ${notifications.length ? notifications.map(taskCard).join("") : emptyCard("No notifications yet.")}
+      <div class="notification-list">
+        ${notifications.length ? notifications.map(notificationItem).join("") : `<p class="notification-empty">No notifications yet.</p>`}
       </div>
     `);
     if (unread.length) toast("Notifications marked as read.");

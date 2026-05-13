@@ -1200,24 +1200,28 @@ a {
   background: #fff8fb;
 }
 
-.notification-dot {
-  width: 8px;
-  min-width: 8px;
-  max-width: 8px;
-  height: 8px;
-  min-height: 8px;
-  max-height: 8px;
-  padding: 0;
+.notification-item > .notification-dot {
+  inline-size: 8px !important;
+  min-inline-size: 8px !important;
+  max-inline-size: 8px !important;
+  block-size: 8px !important;
+  min-block-size: 8px !important;
+  max-block-size: 8px !important;
+  flex: 0 0 8px;
+  align-self: center;
+  justify-self: center;
+  aspect-ratio: 1 / 1;
+  padding: 0 !important;
   border-radius: 50%;
   background: var(--brand);
   display: block;
 }
 
-.notification-dot.notice {
+.notification-item > .notification-dot.notice {
   background: var(--green);
 }
 
-.notification-dot.exam {
+.notification-item > .notification-dot.exam {
   background: #2868c9;
 }
 

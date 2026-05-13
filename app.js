@@ -1101,6 +1101,85 @@ function updateTaskInState(updatedTask) {
   );
 }
 
+async function saveTimetableEditForm(formElement) {
+  if (!state.isAdmin) {
+    toast("Only the administrator or class president can edit the timetable.");
+    return;
+  }
+
+  const form = new FormData(formElement);
+  const id = String(form.get("id") || "");
+  const payload = timetablePayloadFromForm(form);
+  const validationMessage = validateTimetablePayload(payload);
+  if (validationMessage) {
+    toast(validationMessage);
+    return;
+  }
+
+  let updatedEntry = timetableEntryFromRow({ id, ...payload });
+  if (supabaseClient) {
+    const { data, error } = await supabaseClient
+      .from("timetable_entries")
+      .update(payload)
+      .eq("id", id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error(error);
+      toast(error.message);
+      return;
+    }
+    updatedEntry = timetableEntryFromRow(data);
+  }
+
+  state.timetableEntries = state.timetableEntries
+    .map((entry) => String(entry.id) === id ? updatedEntry : entry)
+    .sort((a, b) => a.dayOfWeek - b.dayOfWeek || a.startTime.localeCompare(b.startTime));
+  closeModal();
+  render();
+  toast("Timetable item updated.");
+}
+
+async function saveTaskEditForm(formElement) {
+  if (!canManagePosts()) {
+    toast("Only the administrator or class president can edit posts.");
+    return;
+  }
+
+  const form = new FormData(formElement);
+  const id = String(form.get("id") || "");
+  const payload = taskPayloadFromForm(form);
+  const validationMessage = validateTaskPayload(payload);
+  if (validationMessage) {
+    toast(validationMessage);
+    return;
+  }
+
+  let updatedTask = taskFromRow({ id, ...payload });
+  if (supabaseClient) {
+    const { data, error } = await supabaseClient
+      .from("class_items")
+      .update(payload)
+      .eq("id", id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error(error);
+      toast(error.message);
+      return;
+    }
+
+    updatedTask = taskFromRow(data);
+  }
+
+  updateTaskInState(updatedTask);
+  render();
+  closeModal();
+  toast("Post updated.");
+}
+
 async function loadClassItems() {
   if (!supabaseClient) return;
 
@@ -2332,6 +2411,14 @@ document.addEventListener("click", async (event) => {
     const form = submitButton.closest("form");
     if (form) {
       if (typeof form.reportValidity === "function" && !form.reportValidity()) return;
+      if (form.id === "timetableEditForm") {
+        await saveTimetableEditForm(form);
+        return;
+      }
+      if (form.id === "editTaskForm") {
+        await saveTaskEditForm(form);
+        return;
+      }
       if (typeof form.requestSubmit === "function") {
         form.requestSubmit();
       } else {
@@ -2686,43 +2773,7 @@ document.addEventListener("submit", async (event) => {
   }
 
   if (event.target.id === "timetableEditForm") {
-    if (!state.isAdmin) {
-      toast("Only the administrator or class president can edit the timetable.");
-      return;
-    }
-
-    const form = new FormData(event.target);
-    const id = String(form.get("id") || "");
-    const payload = timetablePayloadFromForm(form);
-    const validationMessage = validateTimetablePayload(payload);
-    if (validationMessage) {
-      toast(validationMessage);
-      return;
-    }
-
-    let updatedEntry = timetableEntryFromRow({ id, ...payload });
-    if (supabaseClient) {
-      const { data, error } = await supabaseClient
-        .from("timetable_entries")
-        .update(payload)
-        .eq("id", id)
-        .select()
-        .single();
-
-      if (error) {
-        console.error(error);
-        toast(error.message);
-        return;
-      }
-      updatedEntry = timetableEntryFromRow(data);
-    }
-
-    state.timetableEntries = state.timetableEntries
-      .map((entry) => String(entry.id) === id ? updatedEntry : entry)
-      .sort((a, b) => a.dayOfWeek - b.dayOfWeek || a.startTime.localeCompare(b.startTime));
-    closeModal();
-    render();
-    toast("Timetable item updated.");
+    await saveTimetableEditForm(event.target);
     return;
   }
 
@@ -2775,42 +2826,7 @@ document.addEventListener("submit", async (event) => {
   }
 
   if (event.target.id === "editTaskForm") {
-    if (!canManagePosts()) {
-      toast("Only the administrator or class president can edit posts.");
-      return;
-    }
-
-    const form = new FormData(event.target);
-    const id = String(form.get("id") || "");
-    const payload = taskPayloadFromForm(form);
-    const validationMessage = validateTaskPayload(payload);
-    if (validationMessage) {
-      toast(validationMessage);
-      return;
-    }
-
-    let updatedTask = taskFromRow({ id, ...payload });
-    if (supabaseClient) {
-      const { data, error } = await supabaseClient
-        .from("class_items")
-        .update(payload)
-        .eq("id", id)
-        .select()
-        .single();
-
-      if (error) {
-        console.error(error);
-        toast(error.message);
-        return;
-      }
-
-      updatedTask = taskFromRow(data);
-    }
-
-    updateTaskInState(updatedTask);
-    render();
-    closeModal();
-    toast("Post updated.");
+    await saveTaskEditForm(event.target);
     return;
   }
 

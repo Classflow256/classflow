@@ -1499,52 +1499,75 @@ a {
   color: var(--ink);
 }
 
-.timetable-grid {
+.timetable-board {
+  --slot-height: 74px;
   display: grid;
-  grid-template-columns: repeat(6, minmax(150px, 1fr));
+  grid-template-columns: 92px repeat(6, minmax(150px, 1fr));
+  min-width: 1040px;
   overflow-x: auto;
+  position: relative;
 }
 
-.timetable-day {
-  min-width: 150px;
-  border-right: 1px solid #f2e5ec;
-  background: #fff;
-}
-
-.timetable-day:last-child {
-  border-right: 0;
-}
-
-.timetable-day h2 {
-  margin: 0;
-  padding: 14px 16px;
-  border-bottom: 1px solid #f2e5ec;
+.timetable-corner,
+.timetable-day-head,
+.timetable-time-row {
+  display: grid;
+  place-items: center;
+  border-right: 1px solid #ead8e2;
+  border-bottom: 1px solid #ead8e2;
   background: #fff8fb;
   color: #6d1640;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 850;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
 }
 
-.timetable-slots {
-  display: grid;
-  gap: 10px;
-  min-height: 360px;
-  padding: 12px;
-  align-content: start;
+.timetable-corner {
+  position: sticky;
+  left: 0;
+  z-index: 4;
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.timetable-day-head {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+}
+
+.timetable-time-row {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  padding: 8px;
+  background: #fff;
+  color: var(--ink);
+  text-align: center;
+  line-height: 1.2;
+}
+
+.timetable-cell {
+  border-right: 1px solid #ead8e2;
+  border-bottom: 1px solid #ead8e2;
+  background: #fbfbfb;
 }
 
 .timetable-slot {
   position: relative;
   display: grid;
   gap: 6px;
-  padding: 12px;
+  align-self: stretch;
+  margin: 5px;
+  padding: 10px;
   border: 1px solid #efd5e1;
   border-left: 4px solid var(--brand);
-  border-radius: 16px;
+  border-radius: 10px;
   background: #fff;
   box-shadow: 0 12px 24px rgba(70, 11, 42, 0.06);
+  overflow: hidden;
+  z-index: 5;
 }
 
 .timetable-time {
@@ -1559,22 +1582,11 @@ a {
   line-height: 1.25;
 }
 
-.timetable-slot p,
-.timetable-empty {
+.timetable-slot p {
   margin: 0;
   color: var(--muted);
   font-size: 13px;
   line-height: 1.35;
-}
-
-.timetable-empty {
-  display: grid;
-  place-items: center;
-  min-height: 86px;
-  border: 1px dashed #ead4df;
-  border-radius: 16px;
-  background: #fffafd;
-  text-align: center;
 }
 
 .muted-text {

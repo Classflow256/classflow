@@ -101,6 +101,9 @@ const TIMETABLE_DAYS = [
   { value: 5, label: "Friday" },
   { value: 6, label: "Saturday" }
 ];
+const TIMETABLE_START_HOUR = 8;
+const TIMETABLE_END_HOUR = 21;
+const TIMETABLE_SLOT_MINUTES = 15;
 const PRESIDENT_EMAILS = ["2025bit196@std.must.ac.ug"];
 const OWNER_EMAILS = ["owner@classflow256.com"];
 const STAT_ICON_IMAGES = {
@@ -744,6 +747,27 @@ function validateTimetablePayload(payload) {
   return "";
 }
 
+function minutesFromTime(time) {
+  const [hours, minutes] = String(time || "00:00").split(":").map(Number);
+  return (Number.isFinite(hours) ? hours : 0) * 60 + (Number.isFinite(minutes) ? minutes : 0);
+}
+
+function timetableHours() {
+  return Array.from(
+    { length: TIMETABLE_END_HOUR - TIMETABLE_START_HOUR },
+    (_, index) => TIMETABLE_START_HOUR + index
+  );
+}
+
+function timetableSlotLine(time) {
+  const offset = minutesFromTime(time) - TIMETABLE_START_HOUR * 60;
+  return 2 + Math.max(0, Math.round(offset / TIMETABLE_SLOT_MINUTES));
+}
+
+function formatHourRange(hour) {
+  return `${String(hour).padStart(2, "0")}:00-${String(hour + 1).padStart(2, "0")}:00`;
+}
+
 function taskPayloadFromForm(form) {
   const type = form.get("type");
   const startDate = String(form.get("start_date") || localDateInputValue()).trim();
@@ -1367,11 +1391,9 @@ function renderTimetable() {
   const dashboardSelect = dashboardOptions()
     .map((dashboard) => `<option value="${dashboard.key}" ${dashboard.key === dashboardKey ? "selected" : ""}>${dashboard.label}</option>`)
     .join("");
-  const entriesByDay = new Map(TIMETABLE_DAYS.map((day) => [day.value, []]));
-  state.timetableEntries.forEach((entry) => {
-    if (!entriesByDay.has(entry.dayOfWeek)) entriesByDay.set(entry.dayOfWeek, []);
-    entriesByDay.get(entry.dayOfWeek).push(entry);
-  });
+  const hours = timetableHours();
+  const slotsPerHour = 60 / TIMETABLE_SLOT_MINUTES;
+  const totalSlotRows = (TIMETABLE_END_HOUR - TIMETABLE_START_HOUR) * slotsPerHour;
 
   return `
     <div class="page-grid">
@@ -1390,18 +1412,14 @@ function renderTimetable() {
           ` : ""}
         </div>
 
-        <div class="timetable-grid">
-          ${TIMETABLE_DAYS.map((day) => {
-            const entries = entriesByDay.get(day.value) || [];
-            return `
-              <section class="timetable-day">
-                <h2>${day.label}</h2>
-                <div class="timetable-slots">
-                  ${entries.length ? entries.map(timetableSlot).join("") : `<div class="timetable-empty">No classes scheduled</div>`}
-                </div>
-              </section>
-            `;
-          }).join("")}
+        <div class="timetable-board" style="grid-template-rows: 46px repeat(${totalSlotRows}, calc(var(--slot-height) / ${slotsPerHour}));">
+          <div class="timetable-corner">Time</div>
+          ${TIMETABLE_DAYS.map((day) => `<div class="timetable-day-head">${day.label}</div>`).join("")}
+          ${hours.map((hour) => `<div class="timetable-time-row" style="grid-row:${(hour - TIMETABLE_START_HOUR) * slotsPerHour + 2} / span ${slotsPerHour};">${formatHourRange(hour)}</div>`).join("")}
+          ${TIMETABLE_DAYS.map((day, dayIndex) => hours.map((hour) => `
+            <div class="timetable-cell" style="grid-column:${dayIndex + 2}; grid-row:${(hour - TIMETABLE_START_HOUR) * slotsPerHour + 2} / span ${slotsPerHour};"></div>
+          `).join("")).join("")}
+          ${state.timetableEntries.map(timetableSlot).join("")}
         </div>
       </section>
 
@@ -1458,8 +1476,11 @@ function renderTimetable() {
 }
 
 function timetableSlot(entry) {
+  const dayIndex = Math.max(0, TIMETABLE_DAYS.findIndex((day) => day.value === entry.dayOfWeek));
+  const rowStart = timetableSlotLine(entry.startTime);
+  const rowEnd = Math.max(rowStart + 2, timetableSlotLine(entry.endTime));
   return `
-    <article class="timetable-slot">
+    <article class="timetable-slot" style="grid-column:${dayIndex + 2}; grid-row:${rowStart} / ${rowEnd};">
       <span class="timetable-time">${formatInputTime(entry.startTime)} - ${formatInputTime(entry.endTime)}</span>
       <h3>${entry.title}</h3>
       <p>${[entry.venue, entry.lecturer].filter(Boolean).join(" - ") || "Class session"}</p>

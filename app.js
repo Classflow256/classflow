@@ -143,6 +143,15 @@ const appScreen = document.querySelector("#appScreen");
 const modalHost = document.querySelector("#modalHost");
 const modalContent = document.querySelector("#modalContent");
 const toastStack = document.querySelector("#toastStack");
+const APP_FORM_IDS = new Set([
+  "ownerDashboardForm",
+  "timetableLabelForm",
+  "timetableForm",
+  "timetableEditForm",
+  "presidentForm",
+  "editTaskForm",
+  "postForm"
+]);
 
 function normalizeEmail(email) {
   return email.trim().toLowerCase();
@@ -380,10 +389,32 @@ function hydrateIcons(root = document) {
   });
 }
 
+function userSafeMessage(message) {
+  const text = String(message || "").trim();
+  if (!text) return "";
+  const lower = text.toLowerCase();
+  if (
+    lower.includes("supabase") ||
+    lower.includes("row-level security") ||
+    lower.includes("rls") ||
+    lower.includes("violates") ||
+    lower.includes("permission denied") ||
+    lower.includes("jwt") ||
+    lower.includes("schema cache") ||
+    lower.includes("relation") ||
+    lower.includes("column")
+  ) {
+    return "That change could not be saved online yet. Please try again.";
+  }
+  return text;
+}
+
 function toast(message) {
+  const safeMessage = userSafeMessage(message);
+  if (!safeMessage) return;
   const node = document.createElement("div");
   node.className = "toast";
-  node.textContent = message;
+  node.textContent = safeMessage;
   toastStack.appendChild(node);
   setTimeout(() => node.remove(), 3200);
 }
@@ -704,8 +735,8 @@ function isTaskDone(task) {
   return state.completedTaskIds.has(String(task.id));
 }
 
-function canPresidentManagePosts() {
-  return state.isAdmin && !state.isOwner;
+function canManagePosts() {
+  return state.isAdmin;
 }
 
 function stats() {
@@ -1334,8 +1365,8 @@ function taskCard(task) {
         </div>
         <div class="task-buttons">
           ${task.type === "Assignment" && !done ? `<button class="tiny-button secondary" data-mark-done="${task.id}" type="button">Mark as Done</button>` : ""}
-          ${canPresidentManagePosts() ? `<button class="tiny-button secondary" data-edit-post="${task.id}" type="button">Edit</button>` : ""}
-          ${canPresidentManagePosts() ? `<button class="tiny-button danger" data-delete-post="${task.id}" type="button">Delete</button>` : ""}
+          ${canManagePosts() ? `<button class="tiny-button secondary" data-edit-post="${task.id}" type="button">Edit</button>` : ""}
+          ${canManagePosts() ? `<button class="tiny-button danger" data-delete-post="${task.id}" type="button">Delete</button>` : ""}
           <button class="tiny-button" data-task-action="${task.id}" type="button">${task.type === "Exam" ? "Study Guide" : "Details"}</button>
         </div>
       </div>
@@ -1893,7 +1924,7 @@ function postCard(post) {
       <div class="post-actions">
         <span class="badge ${post.priority === "high" ? "red" : ""}">${post.due}</span>
         <span class="task-meta">${icon("clock")} ${scheduleRange(post)}</span>
-        ${canPresidentManagePosts() ? `<span class="task-meta">
+        ${canManagePosts() ? `<span class="task-meta">
           <button class="icon-button ghost" type="button" data-edit-post="${post.id}" aria-label="Edit post">${icon("edit")}</button>
           <button class="icon-button ghost" type="button" data-delete-post="${post.id}" aria-label="Delete post">${icon("trash")}</button>
         </span>` : ""}
@@ -1965,7 +1996,7 @@ function taskDetailModal(task) {
         <span class="badge ${task.priority === "urgent" ? "red" : ""}">${task.due}</span>
         <span class="task-meta">${icon("clock")} ${scheduleRange(task)}</span>
       </div>
-      ${canPresidentManagePosts() ? taskEditForm(task) : ""}
+      ${canManagePosts() ? taskEditForm(task) : ""}
     </div>
   `;
 }
@@ -2294,7 +2325,7 @@ document.addEventListener("click", async (event) => {
   }
 
   const deleteButton = event.target.closest("[data-delete-post]");
-  if (deleteButton && canPresidentManagePosts()) {
+  if (deleteButton && canManagePosts()) {
     const id = deleteButton.dataset.deletePost;
     if (!window.confirm("Delete this post?")) return;
     if (supabaseClient) {
@@ -2312,7 +2343,7 @@ document.addEventListener("click", async (event) => {
   }
 
   const editButton = event.target.closest("[data-edit-post]");
-  if (editButton && canPresidentManagePosts()) {
+  if (editButton && canManagePosts()) {
     const task = state.tasks.find((item) => String(item.id) === String(editButton.dataset.editPost));
     if (task) openModal(taskDetailModal(task));
     return;
@@ -2453,8 +2484,11 @@ document.addEventListener("input", (event) => {
 });
 
 document.addEventListener("submit", async (event) => {
-  if (event.target.id === "ownerDashboardForm") {
+  if (APP_FORM_IDS.has(event.target.id)) {
     event.preventDefault();
+  }
+
+  if (event.target.id === "ownerDashboardForm") {
     if (!state.isOwner) {
       toast("Only the administrator can switch dashboards.");
       return;
@@ -2472,7 +2506,6 @@ document.addEventListener("submit", async (event) => {
   }
 
   if (event.target.id === "timetableLabelForm") {
-    event.preventDefault();
     if (!state.isAdmin) {
       toast("Only the administrator or class president can edit the timetable.");
       return;
@@ -2504,7 +2537,6 @@ document.addEventListener("submit", async (event) => {
   }
 
   if (event.target.id === "timetableForm") {
-    event.preventDefault();
     if (!state.isAdmin) {
       toast("Only the administrator or class president can edit the timetable.");
       return;
@@ -2544,7 +2576,6 @@ document.addEventListener("submit", async (event) => {
   }
 
   if (event.target.id === "timetableEditForm") {
-    event.preventDefault();
     if (!state.isAdmin) {
       toast("Only the administrator or class president can edit the timetable.");
       return;
@@ -2586,7 +2617,6 @@ document.addEventListener("submit", async (event) => {
   }
 
   if (event.target.id === "presidentForm") {
-    event.preventDefault();
     if (!state.isOwner) {
       toast("Only the administrator can add class presidents.");
       return;
@@ -2635,9 +2665,8 @@ document.addEventListener("submit", async (event) => {
   }
 
   if (event.target.id === "editTaskForm") {
-    event.preventDefault();
-    if (!canPresidentManagePosts()) {
-      toast("Only class presidents can edit posts.");
+    if (!canManagePosts()) {
+      toast("Only the administrator or class president can edit posts.");
       return;
     }
 
@@ -2676,7 +2705,6 @@ document.addEventListener("submit", async (event) => {
   }
 
   if (event.target.id === "postForm") {
-    event.preventDefault();
     if (!state.isAdmin) {
       toast("Only the admin can publish posts.");
       return;

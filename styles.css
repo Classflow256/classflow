@@ -93,22 +93,25 @@ a {
 }
 
 .auth-mobile-brand {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 10px;
+  justify-content: center;
+  gap: 12px;
   color: var(--ink);
-  font-size: 17px;
+  font-size: 22px;
   font-weight: 850;
   letter-spacing: 0.04em;
   text-transform: uppercase;
+  text-align: center;
+  width: 100%;
 }
 
 .auth-mobile-brand img {
-  width: 34px;
-  height: 34px;
+  width: 46px;
+  height: 46px;
   display: block;
   object-fit: contain;
-  border-radius: 8px;
+  border-radius: 10px;
 }
 
 .auth-card {
@@ -2702,7 +2705,17 @@ svg {
     padding: 28px 22px;
   }
 
+  .auth-mobile-brand {
+    font-size: 23px;
+    gap: 12px;
+  }
+
+  .auth-mobile-brand img {
+    width: 50px;
+    height: 50px;
+  }
+
   .auth-heading {
-    margin: 30px 0 34px;
+    margin: 24px 0 34px;
   }
 }

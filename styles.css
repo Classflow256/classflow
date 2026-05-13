@@ -420,6 +420,13 @@ a {
   background: #fff;
 }
 
+.primary-action:disabled,
+.secondary-action:disabled {
+  cursor: progress;
+  opacity: 0.68;
+  transform: none;
+}
+
 .danger-action {
   color: var(--red);
   background: var(--red-soft);

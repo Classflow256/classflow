@@ -418,6 +418,7 @@ function userSafeMessage(message) {
   const text = String(message || "").trim();
   if (!text) return "";
   const lower = text.toLowerCase();
+  if (lower.includes("admin access enabled")) return "";
   if (
     lower.includes("supabase") ||
     lower.includes("row-level security") ||
@@ -1180,6 +1181,45 @@ async function saveTaskEditForm(formElement) {
   toast("Post updated.");
 }
 
+async function handleAppFormButtonClick(event) {
+  event?.preventDefault?.();
+  event?.stopPropagation?.();
+
+  const submitButton = event?.currentTarget || event?.target?.closest?.("[data-submit-form]");
+  const form = submitButton?.closest("form");
+  if (!form) return;
+  if (typeof form.reportValidity === "function" && !form.reportValidity()) return;
+
+  const originalContent = submitButton.innerHTML;
+  submitButton.disabled = true;
+  submitButton.setAttribute("aria-busy", "true");
+  submitButton.innerHTML = "Saving...";
+
+  try {
+    if (form.id === "timetableEditForm") {
+      await saveTimetableEditForm(form);
+      return;
+    }
+    if (form.id === "editTaskForm") {
+      await saveTaskEditForm(form);
+      return;
+    }
+    if (typeof form.requestSubmit === "function") {
+      form.requestSubmit();
+    } else {
+      form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+    }
+  } finally {
+    if (submitButton.isConnected) {
+      submitButton.disabled = false;
+      submitButton.removeAttribute("aria-busy");
+      submitButton.innerHTML = originalContent;
+    }
+  }
+}
+
+window.handleAppFormButtonClick = handleAppFormButtonClick;
+
 async function loadClassItems() {
   if (!supabaseClient) return;
 
@@ -1681,7 +1721,7 @@ function renderTimetable() {
           ${canEdit ? `
             <form id="timetableLabelForm" class="timetable-label-form" action="javascript:void(0)">
               <input name="semester_label" value="${escapeAttribute(state.timetableLabel)}" placeholder="e.g. Semester One 2026" required />
-              <button class="secondary-action" type="button" data-submit-form>Save Label</button>
+              <button class="secondary-action" type="button" data-submit-form onclick="handleAppFormButtonClick(event)">Save Label</button>
             </form>
           ` : ""}
         </div>
@@ -1742,7 +1782,7 @@ function renderTimetable() {
               </label>
             </div>
             <div class="form-actions single">
-              <button class="primary-action" type="button" data-submit-form>Add To Timetable</button>
+              <button class="primary-action" type="button" data-submit-form onclick="handleAppFormButtonClick(event)">Add To Timetable</button>
             </div>
           </form>
         </section>
@@ -1810,7 +1850,7 @@ function timetableEditModal(entry) {
       </div>
       <div class="form-actions">
         <button class="secondary-action" type="button" data-close-modal>Cancel</button>
-        <button class="primary-action" type="button" data-submit-form>Save Changes</button>
+        <button class="primary-action" type="button" data-submit-form onclick="handleAppFormButtonClick(event)">Save Changes</button>
       </div>
     </form>
   `;
@@ -1950,7 +1990,7 @@ function renderReps() {
               <input name="student_number" inputmode="numeric" placeholder="e.g. 196" required />
             </label>
             <div class="form-actions single">
-              <button class="primary-action" type="button" data-submit-form>Add President</button>
+              <button class="primary-action" type="button" data-submit-form onclick="handleAppFormButtonClick(event)">Add President</button>
             </div>
           </form>
           <div class="owner-grid owner-president-list">
@@ -1976,7 +2016,7 @@ function renderReps() {
             </div>
             <div class="form-actions">
               <button class="secondary-action" type="button" data-clear-owner-dashboard>View All</button>
-              <button class="primary-action" type="button" data-submit-form>View Dashboard</button>
+              <button class="primary-action" type="button" data-submit-form onclick="handleAppFormButtonClick(event)">View Dashboard</button>
             </div>
           </form>
         </section>
@@ -2013,7 +2053,7 @@ function renderReps() {
             </label>
             <div class="form-actions">
               <button class="secondary-action" type="reset">Discard</button>
-              <button class="primary-action" type="button" data-submit-form>Publish Post</button>
+              <button class="primary-action" type="button" data-submit-form onclick="handleAppFormButtonClick(event)">Publish Post</button>
             </div>
           </form>
         </section>
@@ -2065,7 +2105,7 @@ function renderReps() {
             </label>
             <div class="form-actions">
               <button class="secondary-action" type="reset">Discard</button>
-              <button class="primary-action" type="button" data-submit-form>Publish Post</button>
+              <button class="primary-action" type="button" data-submit-form onclick="handleAppFormButtonClick(event)">Publish Post</button>
             </div>
           </form>
         </section>
@@ -2127,7 +2167,7 @@ function taskEditForm(task) {
         </label>
         <div class="form-actions">
           <button class="secondary-action" type="button" data-close-modal>Cancel</button>
-          <button class="primary-action" type="button" data-submit-form>Save Changes</button>
+          <button class="primary-action" type="button" data-submit-form onclick="handleAppFormButtonClick(event)">Save Changes</button>
         </div>
       </form>
     </section>
@@ -2407,24 +2447,7 @@ function renderAuth() {
 document.addEventListener("click", async (event) => {
   const submitButton = event.target.closest("[data-submit-form]");
   if (submitButton) {
-    event.preventDefault();
-    const form = submitButton.closest("form");
-    if (form) {
-      if (typeof form.reportValidity === "function" && !form.reportValidity()) return;
-      if (form.id === "timetableEditForm") {
-        await saveTimetableEditForm(form);
-        return;
-      }
-      if (form.id === "editTaskForm") {
-        await saveTaskEditForm(form);
-        return;
-      }
-      if (typeof form.requestSubmit === "function") {
-        form.requestSubmit();
-      } else {
-        form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
-      }
-    }
+    await handleAppFormButtonClick(event);
     return;
   }
 

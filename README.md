@@ -173,6 +173,22 @@ values
   ('owner@classflow256.com', 'owner')
 on conflict (email) do update set role = excluded.role;
 
+update public.app_roles
+set
+  year_joined = coalesce(year_joined, substring(email from '^([0-9]{4})')),
+  course_code = coalesce(course_code, substring(email from '^[0-9]{4}([a-z]+)[0-9]+@std\.must\.ac\.ug$')),
+  student_number = coalesce(student_number, substring(email from '^[0-9]{4}[a-z]+([0-9]+)@std\.must\.ac\.ug$')),
+  dashboard_key = coalesce(
+    dashboard_key,
+    concat(
+      substring(email from '^([0-9]{4})'),
+      '-',
+      substring(email from '^[0-9]{4}([a-z]+)[0-9]+@std\.must\.ac\.ug$')
+    )
+  )
+where role = 'admin'
+  and email ~ '^[0-9]{4}[a-z]+[0-9]+@std\.must\.ac\.ug$';
+
 drop policy if exists "Everyone can read class items" on public.class_items;
 drop policy if exists "Only admin can manage class items" on public.class_items;
 drop policy if exists "Users can read their class items" on public.class_items;
@@ -430,11 +446,7 @@ using (
     select 1 from public.app_roles
     where app_roles.email = lower(coalesce(((select auth.jwt()) ->> 'email'), ''))
       and app_roles.role = 'admin'
-      and dashboard_key = concat(
-        substring(lower(coalesce(((select auth.jwt()) ->> 'email'), '')) from '^([0-9]{4})'),
-        '-',
-        substring(lower(coalesce(((select auth.jwt()) ->> 'email'), '')) from '^[0-9]{4}([a-z]+)[0-9]+@std\.must\.ac\.ug$')
-      )
+      and app_roles.dashboard_key = timetable_settings.dashboard_key
   )
 );
 
@@ -452,11 +464,7 @@ with check (
     select 1 from public.app_roles
     where app_roles.email = lower(coalesce(((select auth.jwt()) ->> 'email'), ''))
       and app_roles.role = 'admin'
-      and dashboard_key = concat(
-        substring(lower(coalesce(((select auth.jwt()) ->> 'email'), '')) from '^([0-9]{4})'),
-        '-',
-        substring(lower(coalesce(((select auth.jwt()) ->> 'email'), '')) from '^[0-9]{4}([a-z]+)[0-9]+@std\.must\.ac\.ug$')
-      )
+      and app_roles.dashboard_key = timetable_settings.dashboard_key
   )
 );
 
@@ -464,7 +472,19 @@ create policy "Admins can update timetable settings"
 on public.timetable_settings
 for update
 to authenticated
-using (true)
+using (
+  exists (
+    select 1 from public.app_roles
+    where app_roles.email = lower(coalesce(((select auth.jwt()) ->> 'email'), ''))
+      and app_roles.role = 'owner'
+  )
+  or exists (
+    select 1 from public.app_roles
+    where app_roles.email = lower(coalesce(((select auth.jwt()) ->> 'email'), ''))
+      and app_roles.role = 'admin'
+      and app_roles.dashboard_key = timetable_settings.dashboard_key
+  )
+)
 with check (
   exists (
     select 1 from public.app_roles
@@ -475,11 +495,7 @@ with check (
     select 1 from public.app_roles
     where app_roles.email = lower(coalesce(((select auth.jwt()) ->> 'email'), ''))
       and app_roles.role = 'admin'
-      and dashboard_key = concat(
-        substring(lower(coalesce(((select auth.jwt()) ->> 'email'), '')) from '^([0-9]{4})'),
-        '-',
-        substring(lower(coalesce(((select auth.jwt()) ->> 'email'), '')) from '^[0-9]{4}([a-z]+)[0-9]+@std\.must\.ac\.ug$')
-      )
+      and app_roles.dashboard_key = timetable_settings.dashboard_key
   )
 );
 
@@ -501,11 +517,7 @@ using (
     select 1 from public.app_roles
     where app_roles.email = lower(coalesce(((select auth.jwt()) ->> 'email'), ''))
       and app_roles.role = 'admin'
-      and dashboard_key = concat(
-        substring(lower(coalesce(((select auth.jwt()) ->> 'email'), '')) from '^([0-9]{4})'),
-        '-',
-        substring(lower(coalesce(((select auth.jwt()) ->> 'email'), '')) from '^[0-9]{4}([a-z]+)[0-9]+@std\.must\.ac\.ug$')
-      )
+      and app_roles.dashboard_key = timetable_entries.dashboard_key
   )
 );
 
@@ -523,11 +535,7 @@ with check (
     select 1 from public.app_roles
     where app_roles.email = lower(coalesce(((select auth.jwt()) ->> 'email'), ''))
       and app_roles.role = 'admin'
-      and dashboard_key = concat(
-        substring(lower(coalesce(((select auth.jwt()) ->> 'email'), '')) from '^([0-9]{4})'),
-        '-',
-        substring(lower(coalesce(((select auth.jwt()) ->> 'email'), '')) from '^[0-9]{4}([a-z]+)[0-9]+@std\.must\.ac\.ug$')
-      )
+      and app_roles.dashboard_key = timetable_entries.dashboard_key
   )
 );
 
@@ -535,7 +543,19 @@ create policy "Admins can update timetable entries"
 on public.timetable_entries
 for update
 to authenticated
-using (true)
+using (
+  exists (
+    select 1 from public.app_roles
+    where app_roles.email = lower(coalesce(((select auth.jwt()) ->> 'email'), ''))
+      and app_roles.role = 'owner'
+  )
+  or exists (
+    select 1 from public.app_roles
+    where app_roles.email = lower(coalesce(((select auth.jwt()) ->> 'email'), ''))
+      and app_roles.role = 'admin'
+      and app_roles.dashboard_key = timetable_entries.dashboard_key
+  )
+)
 with check (
   exists (
     select 1 from public.app_roles
@@ -546,11 +566,7 @@ with check (
     select 1 from public.app_roles
     where app_roles.email = lower(coalesce(((select auth.jwt()) ->> 'email'), ''))
       and app_roles.role = 'admin'
-      and dashboard_key = concat(
-        substring(lower(coalesce(((select auth.jwt()) ->> 'email'), '')) from '^([0-9]{4})'),
-        '-',
-        substring(lower(coalesce(((select auth.jwt()) ->> 'email'), '')) from '^[0-9]{4}([a-z]+)[0-9]+@std\.must\.ac\.ug$')
-      )
+      and app_roles.dashboard_key = timetable_entries.dashboard_key
   )
 );
 
@@ -568,14 +584,9 @@ using (
     select 1 from public.app_roles
     where app_roles.email = lower(coalesce(((select auth.jwt()) ->> 'email'), ''))
       and app_roles.role = 'admin'
-      and dashboard_key = concat(
-        substring(lower(coalesce(((select auth.jwt()) ->> 'email'), '')) from '^([0-9]{4})'),
-        '-',
-        substring(lower(coalesce(((select auth.jwt()) ->> 'email'), '')) from '^[0-9]{4}([a-z]+)[0-9]+@std\.must\.ac\.ug$')
-      )
+      and app_roles.dashboard_key = timetable_entries.dashboard_key
   )
 );
-
 create policy "Users can read their own profile photo"
 on storage.objects
 for select

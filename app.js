@@ -892,6 +892,22 @@ function markNotificationRead(task) {
   updateNotificationBadge();
 }
 
+function renderNotificationsModal() {
+  const notifications = unreadNotifications();
+  return `
+    <h2 id="modalTitle">Notifications</h2>
+    <div class="notification-list">
+      ${notifications.length ? notifications.map(notificationItem).join("") : `<p class="notification-empty">No notifications yet.</p>`}
+    </div>
+  `;
+}
+
+function openTaskFromNotification(task, sourceItem) {
+  markNotificationRead(task);
+  if (sourceItem) sourceItem.remove();
+  openModal(taskDetailModal(task));
+}
+
 function updateNotificationBadge() {
   const badge = document.querySelector("#notificationCount");
   const button = document.querySelector("#notificationsBtn");
@@ -940,7 +956,7 @@ async function markTaskDone(taskId) {
     });
 
   toast(error
-    ? "Marked done here. Run the README SQL so it saves online."
+    ? "Marked done here. It could not be saved online yet."
     : "Assignment marked as done.");
 }
 
@@ -985,7 +1001,7 @@ async function loadClassItems() {
   if (error) {
     console.error(error);
     state.tasks = [];
-    toast("Supabase table is not ready yet. No class items loaded.");
+    toast("Class items are not ready yet.");
     render();
     return;
   }
@@ -1036,7 +1052,7 @@ async function loadTimetable() {
   if (entriesError) {
     console.error(entriesError);
     state.timetableEntries = [];
-    toast("Timetable table is not ready yet.");
+    toast("Timetable is not ready yet.");
   } else {
     state.timetableEntries = entries?.map(timetableEntryFromRow) || [];
   }
@@ -1101,7 +1117,7 @@ async function saveProfile(userId, profile) {
 
   if (error) {
     console.error(error);
-    toast("Profile table is not ready yet. You can still preview the dashboard.");
+    toast("Profile saving is not ready yet. You can still preview the dashboard.");
     return false;
   }
 
@@ -2022,7 +2038,7 @@ async function handleAvatarUpload(file) {
   }
 
   if (!supabaseClient || !state.session?.user?.id) {
-    toast("Photo preview updated. Sign in with Supabase to save it online.");
+    toast("Photo preview updated. Sign in to save it online.");
     return;
   }
 
@@ -2040,8 +2056,8 @@ async function handleAvatarUpload(file) {
   if (uploadError) {
     console.error(uploadError);
     toast(uploadError.message.includes("Bucket")
-      ? "Create the avatars bucket in Supabase first, then try again."
-      : `Photo preview updated, but Supabase could not save it: ${uploadError.message}`);
+      ? "Photo preview updated, but online photo storage is not ready yet."
+      : `Photo preview updated, but it could not be saved online: ${uploadError.message}`);
     return;
   }
 
@@ -2062,7 +2078,7 @@ async function handleAvatarUpload(file) {
   hydrateIcons(modalHost);
   toast(profileSaved
     ? "Profile picture updated."
-    : "Photo uploaded, but run the README SQL so it saves on your profile.");
+    : "Photo uploaded, but it could not be saved on your profile yet.");
 }
 
 function render() {
@@ -2145,7 +2161,7 @@ document.querySelector("#loginForm").addEventListener("submit", async (event) =>
 
     if (error) {
       const message = error.message.toLowerCase().includes("rate")
-        ? "Supabase email limit reached. Turn off Confirm email in Supabase Auth settings, then try again."
+        ? "Email sign-in is temporarily limited. Try again shortly."
         : error.message;
       toast(message);
       return;
@@ -2153,7 +2169,7 @@ document.querySelector("#loginForm").addEventListener("submit", async (event) =>
 
     state.session = data.session;
     if (!state.session) {
-      toast("Signup is waiting for email confirmation. Turn off Confirm email in Supabase for instant access.");
+      toast("Signup is waiting for email confirmation.");
       return;
     }
 
@@ -2177,7 +2193,6 @@ document.querySelector("#loginForm").addEventListener("submit", async (event) =>
   await loadClassItems();
   await loadTimetable();
   await loadOwnerMetrics();
-  toast(state.isOwner ? "Administrator access enabled." : state.isAdmin ? "Admin access enabled." : "Signed in to the Class Flow workspace.");
 });
 
 document.querySelector("#loginForm").addEventListener("keydown", (event) => {
@@ -2336,10 +2351,12 @@ document.addEventListener("click", async (event) => {
   if (taskButton) {
     const task = state.tasks.find((item) => String(item.id) === String(taskButton.dataset.taskAction));
     if (task) {
-      if (taskButton.closest(".notification-item")) {
-        markNotificationRead(task);
+      const notificationItemButton = taskButton.closest(".notification-item");
+      if (notificationItemButton) {
+        openTaskFromNotification(task, notificationItemButton);
+      } else {
+        openModal(taskDetailModal(task));
       }
-      openModal(taskDetailModal(task));
     }
     return;
   }
@@ -2351,13 +2368,7 @@ document.addEventListener("click", async (event) => {
   }
 
   if (event.target.closest("#notificationsBtn")) {
-    const notifications = unreadNotifications();
-    openModal(`
-      <h2 id="modalTitle">Notifications</h2>
-      <div class="notification-list">
-        ${notifications.length ? notifications.map(notificationItem).join("") : `<p class="notification-empty">No notifications yet.</p>`}
-      </div>
-    `);
+    openModal(renderNotificationsModal());
     return;
   }
 
@@ -2692,7 +2703,7 @@ document.addEventListener("submit", async (event) => {
         data = retry.data;
         error = retry.error;
         if (!error) {
-          toast("Task posted. Run the README SQL so links can save too.");
+          toast("Task posted, but the link could not be saved yet.");
         }
       }
 
@@ -2725,7 +2736,7 @@ document.addEventListener("submit", async (event) => {
     }
     event.target.reset();
     render();
-    toast(supabaseClient ? "Post published to Supabase." : "Post published locally for this session.");
+    toast("Post published.");
   }
 });
 

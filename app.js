@@ -823,7 +823,7 @@ function completionStorageKey() {
 }
 
 function notificationStorageKey() {
-  return `classflow:notifications:${state.currentUser?.email || "guest"}:${activeDashboardKey() || "all"}`;
+  return `classflow:notifications:${state.currentUser?.email || "guest"}`;
 }
 
 function loadLocalCompletions() {
@@ -855,7 +855,11 @@ function saveReadNotifications() {
 }
 
 function unreadNotifications() {
-  return state.tasks.filter((task) => !state.readNotificationIds.has(String(task.id)));
+  return state.tasks.filter((task) => {
+    const id = String(task.id);
+    const fingerprint = `${task.dashboardKey || ""}:${task.title}:${task.startDate || ""}:${task.endDate || ""}`;
+    return !state.readNotificationIds.has(id) && !state.readNotificationIds.has(fingerprint);
+  });
 }
 
 function updateNotificationBadge() {
@@ -1412,14 +1416,16 @@ function renderTimetable() {
           ` : ""}
         </div>
 
-        <div class="timetable-board" style="grid-template-rows: 46px repeat(${totalSlotRows}, calc(var(--slot-height) / ${slotsPerHour}));">
-          <div class="timetable-corner">Time</div>
-          ${TIMETABLE_DAYS.map((day) => `<div class="timetable-day-head">${day.label}</div>`).join("")}
-          ${hours.map((hour) => `<div class="timetable-time-row" style="grid-row:${(hour - TIMETABLE_START_HOUR) * slotsPerHour + 2} / span ${slotsPerHour};">${formatHourRange(hour)}</div>`).join("")}
-          ${TIMETABLE_DAYS.map((day, dayIndex) => hours.map((hour) => `
-            <div class="timetable-cell" style="grid-column:${dayIndex + 2}; grid-row:${(hour - TIMETABLE_START_HOUR) * slotsPerHour + 2} / span ${slotsPerHour};"></div>
-          `).join("")).join("")}
-          ${state.timetableEntries.map(timetableSlot).join("")}
+        <div class="timetable-scroll" aria-label="Scrollable class timetable">
+          <div class="timetable-board" style="grid-template-rows: 46px repeat(${totalSlotRows}, calc(var(--slot-height) / ${slotsPerHour}));">
+            <div class="timetable-corner">Time</div>
+            ${TIMETABLE_DAYS.map((day) => `<div class="timetable-day-head">${day.label}</div>`).join("")}
+            ${hours.map((hour) => `<div class="timetable-time-row" style="grid-row:${(hour - TIMETABLE_START_HOUR) * slotsPerHour + 2} / span ${slotsPerHour};">${formatHourRange(hour)}</div>`).join("")}
+            ${TIMETABLE_DAYS.map((day, dayIndex) => hours.map((hour) => `
+              <div class="timetable-cell" style="grid-column:${dayIndex + 2}; grid-row:${(hour - TIMETABLE_START_HOUR) * slotsPerHour + 2} / span ${slotsPerHour};"></div>
+            `).join("")).join("")}
+            ${state.timetableEntries.map(timetableSlot).join("")}
+          </div>
         </div>
       </section>
 
@@ -2289,7 +2295,10 @@ document.addEventListener("click", async (event) => {
   if (event.target.closest("#notificationsBtn")) {
     const unread = unreadNotifications();
     const notifications = state.tasks;
-    notifications.forEach((task) => state.readNotificationIds.add(String(task.id)));
+    notifications.forEach((task) => {
+      state.readNotificationIds.add(String(task.id));
+      state.readNotificationIds.add(`${task.dashboardKey || ""}:${task.title}:${task.startDate || ""}:${task.endDate || ""}`);
+    });
     saveReadNotifications();
     updateNotificationBadge();
     openModal(`

@@ -431,7 +431,7 @@ a {
   height: var(--header-height);
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
   padding: 0 clamp(14px, 3vw, 28px);
   background: rgba(255, 250, 253, 0.88);
   border-bottom: 1px solid var(--line);
@@ -443,6 +443,7 @@ a {
   font-size: 18px;
   letter-spacing: 0.04em;
   text-transform: uppercase;
+  min-width: 0;
 }
 
 .topbar-actions {
@@ -450,6 +451,7 @@ a {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex: 0 0 auto;
 }
 
 .avatar-button {
@@ -1499,12 +1501,19 @@ a {
   color: var(--ink);
 }
 
+.timetable-scroll {
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-inline: contain;
+}
+
 .timetable-board {
   --slot-height: 74px;
   display: grid;
   grid-template-columns: 92px repeat(6, minmax(150px, 1fr));
-  min-width: 1040px;
-  overflow-x: auto;
+  width: max(1040px, 100%);
   position: relative;
 }
 
@@ -2054,6 +2063,119 @@ svg {
 }
 
 @media (max-width: 620px) {
+  .app-screen {
+    overflow-x: hidden;
+  }
+
+  .topbar {
+    padding: 0 10px;
+    gap: 8px;
+  }
+
+  .topbar .brand-mark {
+    gap: 7px;
+    font-size: 15px;
+    letter-spacing: 0.02em;
+    flex: 1 1 auto;
+    overflow: hidden;
+  }
+
+  .topbar .brand-mark span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .topbar .brand-logo {
+    width: 28px;
+    height: 28px;
+  }
+
+  .topbar-actions {
+    gap: 5px;
+  }
+
+  .topbar-actions .icon-button,
+  .avatar-button {
+    width: 34px;
+    height: 34px;
+    border-radius: 12px;
+  }
+
+  .avatar-button {
+    border-radius: 50%;
+  }
+
+  .view-stage {
+    padding: 16px 10px 24px;
+  }
+
+  .hero-band,
+  .content-card,
+  .form-card,
+  .planner-card,
+  .timetable-shell {
+    border-radius: 18px;
+  }
+
+  .page-title h1 {
+    font-size: clamp(34px, 11vw, 48px);
+    line-height: 1;
+  }
+
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .bottom-nav {
+    overflow-x: auto;
+    grid-template-columns: repeat(5, minmax(74px, 1fr));
+  }
+
+  .nav-item {
+    letter-spacing: 0.04em;
+    font-size: 9px;
+  }
+
+  .timetable-header {
+    padding: 16px;
+  }
+
+  .timetable-header h1 {
+    font-size: 28px;
+  }
+
+  .timetable-scroll {
+    border-top: 1px solid #f2e5ec;
+  }
+
+  .timetable-board {
+    --slot-height: 66px;
+    grid-template-columns: 72px repeat(6, 136px);
+    width: calc(72px + (6 * 136px));
+  }
+
+  .timetable-corner,
+  .timetable-day-head,
+  .timetable-time-row {
+    font-size: 10px;
+  }
+
+  .timetable-slot {
+    margin: 3px;
+    padding: 8px;
+    gap: 4px;
+  }
+
+  .timetable-slot h3 {
+    font-size: 13px;
+  }
+
+  .timetable-slot p,
+  .timetable-time {
+    font-size: 11px;
+  }
+
   .schedule-grid {
     grid-template-columns: 1fr;
   }

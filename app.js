@@ -1600,9 +1600,9 @@ function renderTimetable() {
             <h1>${state.timetableLabel}</h1>
           </div>
           ${canEdit ? `
-            <form id="timetableLabelForm" class="timetable-label-form">
+            <form id="timetableLabelForm" class="timetable-label-form" action="javascript:void(0)">
               <input name="semester_label" value="${escapeAttribute(state.timetableLabel)}" placeholder="e.g. Semester One 2026" required />
-              <button class="secondary-action" type="submit">Save Label</button>
+              <button class="secondary-action" type="button" data-submit-form>Save Label</button>
             </form>
           ` : ""}
         </div>
@@ -1623,7 +1623,7 @@ function renderTimetable() {
       ${canEdit ? `
         <section class="content-card form-card">
           <h2><span class="stat-icon">${icon("calendar")}</span> Add Timetable Item</h2>
-          <form id="timetableForm" class="form-grid">
+          <form id="timetableForm" class="form-grid" action="javascript:void(0)">
             ${state.isOwner ? `
               <label class="form-control">
                 <span class="field-label">Dashboard</span>
@@ -1663,7 +1663,7 @@ function renderTimetable() {
               </label>
             </div>
             <div class="form-actions single">
-              <button class="primary-action" type="submit">Add To Timetable</button>
+              <button class="primary-action" type="button" data-submit-form>Add To Timetable</button>
             </div>
           </form>
         </section>
@@ -1694,7 +1694,7 @@ function timetableSlot(entry) {
 function timetableEditModal(entry) {
   return `
     <h2 id="modalTitle">Edit Timetable Item</h2>
-    <form id="timetableEditForm" class="form-grid">
+    <form id="timetableEditForm" class="form-grid" action="javascript:void(0)">
       <input type="hidden" name="id" value="${escapeAttribute(entry.id)}" />
       <input type="hidden" name="dashboard_key" value="${escapeAttribute(entry.dashboardKey)}" />
       <div class="form-grid two">
@@ -1731,7 +1731,7 @@ function timetableEditModal(entry) {
       </div>
       <div class="form-actions">
         <button class="secondary-action" type="button" data-close-modal>Cancel</button>
-        <button class="primary-action" type="submit">Save Changes</button>
+        <button class="primary-action" type="button" data-submit-form>Save Changes</button>
       </div>
     </form>
   `;
@@ -1849,7 +1849,7 @@ function renderReps() {
         </section>
         <section class="content-card form-card">
           <h2><span class="stat-icon">${icon("users")}</span> Add Class President</h2>
-          <form id="presidentForm" class="form-grid">
+          <form id="presidentForm" class="form-grid" action="javascript:void(0)">
             <label class="form-control">
               <span class="field-label">President Name</span>
               <input name="full_name" placeholder="e.g. Alex Opaki" required />
@@ -1871,7 +1871,7 @@ function renderReps() {
               <input name="student_number" inputmode="numeric" placeholder="e.g. 196" required />
             </label>
             <div class="form-actions single">
-              <button class="primary-action" type="submit">Add President</button>
+              <button class="primary-action" type="button" data-submit-form>Add President</button>
             </div>
           </form>
           <div class="owner-grid owner-president-list">
@@ -1880,7 +1880,7 @@ function renderReps() {
         </section>
         <section class="content-card form-card">
           <h2><span class="stat-icon">${icon("search")}</span> View Class Dashboard</h2>
-          <form id="ownerDashboardForm" class="form-grid">
+          <form id="ownerDashboardForm" class="form-grid" action="javascript:void(0)">
             <div class="form-grid two">
               <label class="form-control">
                 <span class="field-label">Year</span>
@@ -1897,13 +1897,13 @@ function renderReps() {
             </div>
             <div class="form-actions">
               <button class="secondary-action" type="button" data-clear-owner-dashboard>View All</button>
-              <button class="primary-action" type="submit">View Dashboard</button>
+              <button class="primary-action" type="button" data-submit-form>View Dashboard</button>
             </div>
           </form>
         </section>
         <section class="content-card form-card">
           <h2><span class="stat-icon">${icon("edit")}</span> Publish To A Class</h2>
-          <form id="postForm" class="form-grid">
+          <form id="postForm" class="form-grid" action="javascript:void(0)">
             <label class="form-control">
               <span class="field-label">Target Dashboard</span>
               <select name="dashboard_key" required>${dashboardSelect}</select>
@@ -1934,7 +1934,7 @@ function renderReps() {
             </label>
             <div class="form-actions">
               <button class="secondary-action" type="reset">Discard</button>
-              <button class="primary-action" type="submit">Publish Post</button>
+              <button class="primary-action" type="button" data-submit-form>Publish Post</button>
             </div>
           </form>
         </section>
@@ -1959,7 +1959,7 @@ function renderReps() {
         </div>
         <section class="content-card form-card">
           <h2><span class="stat-icon">${icon("edit")}</span> Draft New Post</h2>
-          <form id="postForm" class="form-grid">
+          <form id="postForm" class="form-grid" action="javascript:void(0)">
             <label class="form-control">
               <span class="field-label">Update Title</span>
               <input name="title" placeholder="e.g. Midterm Lab Report Guidelines" required />
@@ -1986,7 +1986,7 @@ function renderReps() {
             </label>
             <div class="form-actions">
               <button class="secondary-action" type="reset">Discard</button>
-              <button class="primary-action" type="submit">Publish Post</button>
+              <button class="primary-action" type="button" data-submit-form>Publish Post</button>
             </div>
           </form>
         </section>
@@ -2026,7 +2026,7 @@ function taskEditForm(task) {
   return `
     <section class="edit-panel">
       <h3>Edit Post</h3>
-      <form id="editTaskForm" class="form-grid">
+      <form id="editTaskForm" class="form-grid" action="javascript:void(0)">
         <input type="hidden" name="id" value="${escapeAttribute(task.id)}" />
         <input type="hidden" name="dashboard_key" value="${escapeAttribute(task.dashboardKey || state.currentUser?.dashboardKey || "")}" />
         <label class="form-control">
@@ -2048,7 +2048,7 @@ function taskEditForm(task) {
         </label>
         <div class="form-actions">
           <button class="secondary-action" type="button" data-close-modal>Cancel</button>
-          <button class="primary-action" type="submit">Save Changes</button>
+          <button class="primary-action" type="button" data-submit-form>Save Changes</button>
         </div>
       </form>
     </section>
@@ -2326,6 +2326,17 @@ function renderAuth() {
 }
 
 document.addEventListener("click", async (event) => {
+  const submitButton = event.target.closest("[data-submit-form]");
+  if (submitButton) {
+    event.preventDefault();
+    const form = submitButton.closest("form");
+    if (form) {
+      if (typeof form.reportValidity === "function" && !form.reportValidity()) return;
+      form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+    }
+    return;
+  }
+
   const authModeButton = event.target.closest("[data-auth-mode]");
   if (authModeButton) {
     state.authMode = authModeButton.dataset.authMode;
